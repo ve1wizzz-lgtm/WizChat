@@ -82,12 +82,19 @@ function showMessageActions(event, msgId, isMine) {
     const msg = messagesCache[msgId];
     if(!msg) return;
     currentMenuMsgId = msgId;
+    
+    const overlay = document.getElementById('menuOverlay');
     const menu = document.getElementById('msgContextMenu');
-    if(!menu) return;
+    
+    if(overlay) overlay.style.display = 'block';
+    if(menu) menu.style.display = 'flex';
+    
     const rect = event.target.getBoundingClientRect();
-    menu.style.display = 'flex';
-    menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
-    menu.style.top = (rect.top - 100) + 'px'; 
+    if(menu) {
+        menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+        menu.style.top = (rect.top - 100) + 'px'; 
+    }
+
     const reactionsDiv = document.getElementById('contextReactions');
     if(reactionsDiv) {
         reactionsDiv.innerHTML = `
@@ -107,12 +114,14 @@ function showMessageActions(event, msgId, isMine) {
 }
 
 function closeContextMenu() {
+    const overlay = document.getElementById('menuOverlay');
     const menu = document.getElementById('msgContextMenu');
+    if(overlay) overlay.style.display = 'none';
     if(menu) menu.style.display = 'none';
     currentMenuMsgId = null;
 }
 
-document.addEventListener('click', (e) => { if (!e.target.closest('.msg-context-menu')) closeContextMenu(); });
+// Убираем глобальный слушатель document click, так как теперь есть overlay
 
 function editMessage(msgId) {
     const msg = messagesCache[msgId];
@@ -171,17 +180,13 @@ function toggleReaction(roomId, msgId, emoji) {
 
 function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение для всех?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }
 
-// УДАЛЕНИЕ ЧАТА (С полной очисткой истории)
 function deleteChatFromProfile() {
     if(currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
     if(confirm("Удалить этот чат из вашего списка? (Вся история переписки будет удалена)")) {
         const myId = localStorage.getItem('myUserId');
         database.ref(`userChats/${myId}/${currentRoomId}`).remove().then(() => {
-            // Удаляем саму историю сообщений
             database.ref(`chats/${currentRoomId}`).remove().then(() => {
-                closeProfileModal();
-                closeChat();
-                loadMyChatsList();
+                closeProfileModal(); closeChat(); loadMyChatsList();
             });
         });
     }
@@ -211,7 +216,7 @@ function openProfileModal() {
     if(!modal) return;
     name.textContent = "Загрузка..."; modal.style.display = 'flex'; 
     if(leaveBtn) leaveBtn.style.display = 'none';
-    if(deleteChatBtn) deleteChatBtn.style.display = 'none'; // Скрываем по умолчанию
+    if(deleteChatBtn) deleteChatBtn.style.display = 'none';
     av.style.backgroundImage = 'none';
 
     if (currentRoomId.startsWith('ch_')) {
@@ -226,7 +231,6 @@ function openProfileModal() {
             }
         });
     } else {
-        // Показываем кнопку удаления для личных чатов
         if(deleteChatBtn) deleteChatBtn.style.display = 'block';
         const otherUid = currentRoomId.split('_').find(id => id !== localStorage.getItem('myUserId'));
         if(!otherUid) return;
@@ -369,7 +373,6 @@ function loadProfile() {
     if(!newName) return alert("Введите имя!");
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
     database.ref('users/' + myId).update({ displayName: newName, avatarUrl: finalAvatar }).then(() => {
-        // Обновляем имя во всех чатах у собеседников
         database.ref(`userChats/${myId}`).once('value').then(snap => {
             snap.forEach(child => {
                 const roomId = child.key;
@@ -467,7 +470,7 @@ function loadMyChatsList() {
                 let previewText = data.lastMessage || ""; if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
                 
                 const isChannel = roomId.startsWith('ch_'); 
-                const icon = isChannel ? '📢 ' : ''; // Убрали @ для личных чатов
+                const icon = isChannel ? '📢 ' : ''; 
 
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
                 let avText = data.avatarUrl ? '' : (isChannel ? '#' : (data.username ? data.username[0].toUpperCase() : '?'));
@@ -571,7 +574,10 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
     if(!container) return;
     const wrapper = document.createElement('div'); wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received'); wrapper.id = 'msg_wrap_' + msgId;
     const newMessage = document.createElement('div'); newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
+    
+    // Вот здесь мы привязываем клик к тексту
     newMessage.onclick = function(e) { showMessageActions(e, msgId, msg.userId === myId); };
+    
     let replyHTML = '';
     if (msg.replyTo) replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
     const timeString = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
