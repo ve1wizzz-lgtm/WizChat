@@ -21,7 +21,6 @@
     </div>
 
     <div id="menuOverlay" class="menu-overlay" onclick="closeContextMenu()"></div>
-
     <div id="msgContextMenu" class="msg-context-menu">
         <div class="context-reactions" id="contextReactions"></div>
         <div class="context-actions" id="contextActions"></div>
@@ -44,7 +43,6 @@
     </div>
 
     <div class="app" id="mainApp" style="display: none;">
-        
         <div class="tab-content active" id="tab-chats">
             <div class="sidebar">
                 <div class="search-wrapper">
@@ -54,12 +52,10 @@
                     </div>
                     <div class="search-results" id="searchResults" style="display: none;"></div>
                 </div>
-                
                 <div class="header" style="display: flex; justify-content: space-between; align-items: center; padding-right: 15px;">
                     Мои чаты
                     <button onclick="openCreateModal()" style="background: #2b5278; border: none; color: white; padding: 5px 10px; border-radius: 10px; cursor: pointer;">➕</button>
                 </div>
-                
                 <div class="chat-list" id="chatList"></div>
             </div>
         </div>
@@ -99,17 +95,13 @@
             <div class="profile-settings">
                 <label>Имя (Никнейм)</label>
                 <input type="text" id="newDisplayName" placeholder="Введите имя">
-                
                 <label>О себе (Описание)</label>
                 <textarea id="newBio" placeholder="Расскажите о себе..." style="padding: 12px; border-radius: 10px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; font-size: 16px; resize:none; height: 80px; font-family: sans-serif;"></textarea>
-
                 <label>Загрузить фото с телефона</label>
                 <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
                 <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
-                
                 <label>Или вставьте ссылку на фото</label>
                 <input type="text" id="newAvatarUrl" placeholder="https://...">
-                
                 <button onclick="saveProfile()">Сохранить профиль</button>
             </div>
         </div>
@@ -121,22 +113,13 @@
                 <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px; font-size: 16px;">@...</p>
                 <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic; max-height: 80px; overflow-y: auto;"></p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
-                
-                <!-- Переключатель уведомлений -->
                 <div id="muteSettingContainer" style="display:none; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 10px; margin-bottom: 15px;">
                     <span style="color: var(--text-main); font-weight: bold;">Уведомления</span>
-                    <label class="switch">
-                        <input type="checkbox" id="muteToggle" onchange="toggleMuteChat()">
-                        <span class="slider"></span>
-                    </label>
+                    <label class="switch"><input type="checkbox" id="muteToggle" onchange="toggleMuteChat()"><span class="slider"></span></label>
                 </div>
-
                 <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
                 <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
-                
-                <!-- Удаление чата -->
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Удалить чат</button>
-                
                 <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
                 <button onclick="closeProfileModal()" style="background: var(--bg-panel); border: 1px solid var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
@@ -148,11 +131,9 @@
                 <span id="chatTitle" onclick="openProfileModal()" style="cursor: pointer; flex:1;">Общий чат</span>
                 <span class="search-chat-btn" onclick="toggleChatSearch()" style="cursor:pointer; font-size:20px;">🔍</span>
             </div>
-
             <div class="chat-search-container" id="chatSearchContainer">
                 <input type="text" id="chatSearchInput" placeholder="Поиск в чате..." oninput="filterChatMessages(this.value)">
             </div>
-
             <div class="messages" id="messages"></div>
             <div class="reply-preview" id="replyPreview" style="display: none;">
                 <div class="reply-line"></div>
@@ -162,7 +143,6 @@
                 </div>
                 <button onclick="cancelReply()" class="cancel-reply-btn">✖</button>
             </div>
-            
             <div id="chatBlockedBanner" style="display:none; padding: 15px; text-align: center; background: var(--bg-panel); border-top: 1px solid var(--bg-input);">
                 <p style="color: var(--text-main); margin-bottom: 10px;">Вы заблокировали этого пользователя</p>
                 <button onclick="unblockCurrentUser()" style="background: #2ecc71; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">Разблокировать</button>
@@ -174,11 +154,13 @@
             <div id="emojiPanel" class="emoji-panel" style="display: none;"></div>
             <div id="mentionPopup" class="mention-popup" style="display: none;"></div>
 
+            <!-- Добавили кнопку микрофона -->
             <div class="input-area" id="messageInputArea">
                 <input type="file" id="chatImageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
                 <button onclick="document.getElementById('chatImageUpload').click()" style="background: transparent; color: var(--text-muted); width: 40px; height: 45px; font-size: 22px; padding: 0; margin-right: -5px;">📎</button>
                 <button onclick="toggleEmojiPanel()" style="background: transparent; color: var(--text-muted); width: 40px; height: 45px; font-size: 22px; padding: 0;">😊</button>
                 <input type="text" id="msgInput" placeholder="Сообщение..." oninput="handleMentionInput(event)">
+                <button id="micBtn" onclick="toggleRecording()" style="background: transparent; color: var(--text-muted); width: 40px; height: 45px; font-size: 22px; padding: 0;">🎤</button>
                 <button onclick="sendMessage()">➤</button>
             </div>
         </div>
