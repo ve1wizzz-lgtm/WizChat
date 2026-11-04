@@ -17,26 +17,8 @@ function setCreateType(type) { createType = type; hideModal('choiceCreateModal')
 function closeCreateModal() { hideModal('createModal'); }
 function closeProfileModal() { hideModal('profileModal'); }
 function scrollToBottom() { const msgContainer = document.getElementById('messages'); if(msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight; }function scrollToMsg(msgId) { const el = document.getElementById('msg_wrap_' + msgId); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 1500); } }
-document.addEventListener("DOMContentLoaded", () => {
-    const uploadInput = document.getElementById('avatarUpload');
-    if(uploadInput) {
-        uploadInput.addEventListener('change', function(e) {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); canvas.width = 150; canvas.height = 150;
-                    const minSize = Math.min(img.width, img.height); const sx = (img.width - minSize) / 2; const sy = (img.height - minSize) / 2;
-                    ctx.drawImage(img, sx, sy, minSize, minSize, 0, 0, 150, 150); tempAvatarBase64 = canvas.toDataURL('image/jpeg', 0.8);
-                    const profAvatar = document.getElementById('profileAvatar'); profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${tempAvatarBase64})`;
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-});function toggleRecording() {
+document.addEventListener("DOMContentLoaded", () => {});
+function toggleRecording() {
     const micBtn = document.getElementById('micBtn');
     if (!isRecording) {
         navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -240,26 +222,27 @@ function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySett
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
 function loadSettingsToggles() { const myId = localStorage.getItem('myUserId'); if(!myId) return; database.ref('users/' + myId).once('value').then(snap => { const data = snap.val(); if(data) { document.getElementById('privateAccountToggle').checked = data.privateAccount === true; document.getElementById('forbidFirstMsgToggle').checked = data.forbidFirstMessage === true; } }); }
 function togglePrivateAccount() { const myId = localStorage.getItem('myUserId'); const isChecked = document.getElementById('privateAccountToggle').checked; database.ref('users/' + myId).update({ privateAccount: isChecked }); }
-function toggleForbidFirstMsg() { const myId = localStorage.getItem('myUserId'); const isChecked = document.getElementById('forbidFirstMsgToggle').checked; database.ref('users/' + myId).update({ forbidFirstMessage: isChecked }); }function handleAvatarUpload(event) {
-    const file = event.target.files[0]; if (!file) return;
-    if (file.size > 500 * 1024) return alert("Файл слишком большой! Максимум 500 КБ для GIF/фото.");
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        tempAvatarBase64 = e.target.result;
-        const profAvatar = document.getElementById('profileAvatar'); profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${tempAvatarBase64})`;
-    };
-    reader.readAsDataURL(file);
+function toggleForbidFirstMsg() { const myId = localStorage.getItem('myUserId'); const isChecked = document.getElementById('forbidFirstMsgToggle').checked; database.ref('users/' + myId).update({ forbidFirstMessage: isChecked }); }const IMGBB_API_KEY = "2cfc53f344ebcdd4a71f0ab2b3bd0439"; 
+
+function uploadToImgBB(file, type) {
+    if (type === 'avatar') { const av = document.getElementById('profileAvatar'); av.style.backgroundImage = 'none'; av.textContent = '⏳'; } 
+    else { const b = document.getElementById('myProfileBanner'); b.style.backgroundImage = 'none'; b.style.backgroundColor = '#555'; }
+    const formData = new FormData(); formData.append('image', file);
+    fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const imageUrl = data.data.url; 
+            if (type === 'avatar') { tempAvatarBase64 = imageUrl; const profAvatar = document.getElementById('profileAvatar'); profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${imageUrl})`; } 
+            else { tempBannerBase64 = imageUrl; const bannerEl = document.getElementById('myProfileBanner'); bannerEl.style.backgroundImage = `url(${imageUrl})`; }
+        } else { alert("Ошибка ImgBB: " + data.error.message); }
+    })
+    .catch(error => { alert("Ошибка интернета при загрузке гифки!"); console.error(error); });
 }
-function handleBannerUpload(event) {
-    const file = event.target.files[0]; if (!file) return;
-    if (file.size > 1024 * 1024) return alert("Баннер слишком большой! Максимум 1 МБ.");
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        tempBannerBase64 = e.target.result;
-        const bannerEl = document.getElementById('myProfileBanner'); bannerEl.style.backgroundImage = `url(${tempBannerBase64})`;
-    };
-    reader.readAsDataURL(file);
-}
+
+function handleAvatarUpload(event) { const file = event.target.files[0]; if (!file) return; if (file.size > 10 * 1024 * 1024) return alert("Файл слишком большой! Максимум 10 МБ."); uploadToImgBB(file, 'avatar'); }
+function handleBannerUpload(event) { const file = event.target.files[0]; if (!file) return; if (file.size > 15 * 1024 * 1024) return alert("Баннер слишком большой! Максимум 15 МБ."); uploadToImgBB(file, 'banner'); }
+
 function registerUser() {
     const rawUsername = document.getElementById('loginUsername').value;
     const username = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -281,8 +264,7 @@ function loginUser() {
         const uid = userCredential.user.uid; localStorage.setItem('myUserId', uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(uid); loadMyChatsList(); loadProfile();
     }).catch(err => alert("Неверный юзернейм или пароль: " + err.message));
 }
-function logoutUser() { if (!confirm("Выйти из аккаунта?")) return; auth.signOut().then(() => { localStorage.removeItem('myUserId'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('authScreen').style.display = 'flex'; }); }
-function loadProfile() {
+function logoutUser() { if (!confirm("Выйти из аккаунта?")) return; auth.signOut().then(() => { localStorage.removeItem('myUserId'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('authScreen').style.display = 'flex'; }); }function loadProfile() {
     const myId = localStorage.getItem('myUserId'); if (!myId) return;
     database.ref('users/' + myId).once('value').then(snap => {
         const data = snap.val(); if (!data) return; 
@@ -385,6 +367,13 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
 function getReactionsHTML(reactions, msgId, roomId) { let html = ''; for (const [emoji, users] of Object.entries(reactions)) { if (users.length > 0) { html += `<span onclick="event.stopPropagation(); toggleReaction(event, '${roomId}', '${msgId}', '${emoji}')" style="cursor:pointer; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`; } } return html; }
 function openProfileByUsername(username) { database.ref('users').orderByChild('username').equalTo(username).once('value', snap => { if(snap.exists()) { snap.forEach(child => { openProfileModal(child.key); }); } }); }
 function sendMessage() {
+    const input = document.getElementById('msgInput'); if(!input) return; const text = input.value; const myId = localStorage.getItem('myUserId'); if (text.length > 500) return alert("Максимум 500 символов.");
+    if (text.trim() !== "" && myId) {
+        database.ref('users/' + myId).once('value').then((snap) => {
+            const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null; const msgData = { text: text, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false }; if (activeReplyContext) msgData.replyTo = activeReplyContext;
+            database.ref('chats/' + currentRoomId).push(msgData).then(() => {
+                input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout); document.getElementById('emojiPanel').style.display = 'none';
+                if (currfunction sendMessage() {
     const input = document.getElementById('msgInput'); if(!input) return; const text = input.value; const myId = localStorage.getItem('myUserId'); if (text.length > 500) return alert("Максимум 500 символов.");
     if (text.trim() !== "" && myId) {
         database.ref('users/' + myId).once('value').then((snap) => {
