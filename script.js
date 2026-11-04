@@ -52,7 +52,19 @@ function deleteMessage(roomId, msgId) {
 
 function openCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
 function closeCreateModal() { document.getElementById('createModal').style.display = 'none'; }
-function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }function openProfileModal() {
+function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }
+
+function leaveChannel() {
+    const myId = localStorage.getItem('myUserId');
+    if(!currentProfileChannelId) return;
+    if(!confirm("Вы уверены, что хотите отписаться?")) return;
+    database.ref(`userChats/${myId}/${currentProfileChannelId}`).remove().then(() => {
+        database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
+        closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
+    });
+}
+
+function openProfileModal() {
     if (currentRoomId === 'global') return;
     const modal = document.getElementById('profileModal');
     const av = document.getElementById('profAvatar');
@@ -139,7 +151,9 @@ function applySettings() {
 }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
-applySettings();function registerUser() {
+applySettings();
+
+function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     if(!username || password.length < 6) { return alert("Пароль мин. 6 символов!"); }
@@ -242,9 +256,7 @@ function startPrivateChat(otherUid, otherUsername) {
         openChat(roomId, otherUsername, null);
         document.getElementById('searchInput').value = ''; document.getElementById('searchResults').style.display = 'none';
     });
-}
-
-function loadMyChatsList() {
+}function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
     database.ref(`userChats/${myId}`).on('value', (snapshot) => {
@@ -422,22 +434,12 @@ function sendMessage() {
 document.getElementById('msgInput').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') sendMessage();
 });
-// КОНЕЦ КОДА
 
-function leaveChannel() {
-    const myId = localStorage.getItem('myUserId');
-    if(!currentProfileChannelId) return;
-    if(!confirm("Вы уверены, что хотите отписаться?")) return;
-    database.ref(`userChats/${myId}/${currentProfileChannelId}`).remove().then(() => {
-        database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
-        closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
-    });
-}
 // --- ИНТЕГРАЦИЯ С TELEGRAM MINI APP ---
 const tg = window.Telegram.WebApp;
-tg.expand(); // Разворачиваем на весь экран
+if(tg) { tg.expand(); }
 
-if (tg.initDataUnsafe && tg.initDataUnsafe.user && !localStorage.getItem('myUserId')) {
+if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && !localStorage.getItem('myUserId')) {
     const tgUser = tg.initDataUnsafe.user;
     const tgEmail = `tg_${tgUser.id}@wizchat.com`;
     const tgPassword = `telegram_secret_${tgUser.id}`;
@@ -457,3 +459,4 @@ if (tg.initDataUnsafe && tg.initDataUnsafe.user && !localStorage.getItem('myUser
             }
         });
 }
+// КОНЕЦ КОДА
