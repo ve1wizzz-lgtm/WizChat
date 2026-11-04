@@ -15,6 +15,9 @@
 <body>
     <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
+    <!-- Невидимый фон для закрытия меню -->
+    <div id="menuOverlay" class="menu-overlay" style="display: none;" onclick="closeContextMenu()"></div>
+
     <div id="msgContextMenu" class="msg-context-menu" style="display: none;">
         <div class="context-reactions" id="contextReactions"></div>
         <div class="context-actions" id="contextActions"></div>
@@ -95,12 +98,8 @@
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
                 <p id="profUsername" style="color: #4fc3f7; margin-bottom: 15px; font-size: 16px;">@...</p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
-                
-                <!-- Кнопка удаления чата -->
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
-                
                 <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
-                
                 <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
