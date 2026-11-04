@@ -76,7 +76,11 @@
                     <button onclick="changeFontSize('large')">Большой</button>
                 </div>
             </div>
-            <div class="settings-group" style="margin-top: 30px;">
+            <div class="settings-group">
+                <h3>Заблокированные</h3>
+                <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
+            </div>
+            <div class="settings-group" style="margin-top: 10px;">
                 <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
             </div>
         </div>
@@ -90,11 +94,17 @@
             <div class="profile-settings">
                 <label>Имя (Никнейм)</label>
                 <input type="text" id="newDisplayName" placeholder="Введите имя">
+                
+                <label>О себе (Описание)</label>
+                <textarea id="newBio" placeholder="Расскажите о себе..." style="padding: 12px; border-radius: 10px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; font-size: 16px; resize:none; height: 80px; font-family: sans-serif;"></textarea>
+
                 <label>Загрузить фото с телефона</label>
                 <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
                 <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
+                
                 <label>Или вставьте ссылку на фото</label>
                 <input type="text" id="newAvatarUrl" placeholder="https://...">
+                
                 <button onclick="saveProfile()">Сохранить профиль</button>
             </div>
         </div>
@@ -103,16 +113,18 @@
             <div class="modal-content" style="text-align: center; padding: 30px 20px;">
                 <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; width: 100px; height: 100px; font-size: 40px;">#</div>
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
-                <p id="profUsername" style="color: #4fc3f7; margin-bottom: 15px; font-size: 16px;">@...</p>
+                <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px; font-size: 16px;">@...</p>
+                <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic; max-height: 80px; overflow-y: auto;"></p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
                 
-                <!-- Кнопка написать сообщение -->
                 <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
+                
+                <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
+                
+                <button id="reportUserBtn" onclick="reportUser()" style="background: #8e44ad; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">⚠️ Пожаловаться</button>
 
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
-                
                 <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
-                
                 <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
