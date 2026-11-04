@@ -118,11 +118,7 @@
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
                 
                 <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
-                
                 <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
-                
-                <button id="reportUserBtn" onclick="reportUser()" style="background: #8e44ad; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">⚠️ Пожаловаться</button>
-
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
                 <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
                 <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
@@ -143,6 +139,16 @@
                 </div>
                 <button onclick="cancelReply()" class="cancel-reply-btn">✖</button>
             </div>
+            
+            <!-- Баннеры блокировки -->
+            <div id="chatBlockedBanner" style="display:none; padding: 15px; text-align: center; background: var(--bg-panel); border-top: 1px solid var(--bg-input);">
+                <p style="color: var(--text-main); margin-bottom: 10px;">Вы заблокировали этого пользователя</p>
+                <button onclick="unblockCurrentUser()" style="background: #2ecc71; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">Разблокировать</button>
+            </div>
+            <div id="youAreBlockedBanner" style="display:none; padding: 15px; text-align: center; background: var(--bg-panel); border-top: 1px solid var(--bg-input); color: var(--text-muted);">
+                Пользователь заблокировал вас. Вы не можете отправлять сообщения.
+            </div>
+
             <div class="input-area" id="messageInputArea">
                 <input type="text" id="msgInput" placeholder="Сообщение...">
                 <button onclick="sendMessage()">➤</button>
