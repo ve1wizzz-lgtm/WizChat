@@ -15,29 +15,25 @@ const auth = firebase.auth();
 let currentRoomId = 'global'; 
 let currentRoomRef = null; 
 let currentTypingRef = null; 
+let currentStatusRef = null; 
 let currentProfileChannelId = null; 
 let activeReplyContext = null;
 let messagesCache = {}; 
 let typingTimeout;
 let tempAvatarBase64 = null;
 let previousUnread = {}; 
-let currentMenuMsgId = null; // Для меню сообщений
+let currentMenuMsgId = null;
 
-// --- СИСТЕМА ОНЛАЙН-СТАТУСА ---
 function setupOnlineStatus(uid) {
     const isOffline = { state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP };
     const isOnline = { state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP };
     const userRef = database.ref('/status/' + uid);
-
     database.ref('.info/connected').on('value', (snapshot) => {
         if (snapshot.val() == false) return;
-        userRef.onDisconnect().set(isOffline).then(() => {
-            userRef.set(isOnline);
-        });
+        userRef.onDisconnect().set(isOffline).then(() => { userRef.set(isOnline); });
     });
 }
 
-// Загрузка фото
 document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
     if(uploadInput) {
@@ -70,7 +66,6 @@ document.addEventListener("DOMContentLoaded", () => {
 document.getElementById('msgInput').addEventListener('input', () => {
     const myId = localStorage.getItem('myUserId');
     if (!myId || !currentRoomId) return;
-    
     database.ref(`users/${myId}`).once('value').then(uSnap => {
         const myData = uSnap.val();
         const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; 
@@ -82,51 +77,42 @@ document.getElementById('msgInput').addEventListener('input', () => {
     });
 });
 
-// --- КОНТЕКСТНОЕ МЕНЮ СООБЩЕНИЙ ---
 function showMessageActions(event, msgId, isMine) {
-    event.stopPropagation(); // Чтобы не срабатывали другие клики
+    if(event) event.stopPropagation(); 
     const msg = messagesCache[msgId];
     if(!msg) return;
-    
     currentMenuMsgId = msgId;
     const menu = document.getElementById('msgContextMenu');
-    
-    // Позиционируем меню
+    if(!menu) return;
     const rect = event.target.getBoundingClientRect();
     menu.style.display = 'flex';
     menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
-    menu.style.top = (rect.top - 100) + 'px'; // Чуть выше сообщения
-    
-    // Реакции
+    menu.style.top = (rect.top - 100) + 'px'; 
     const reactionsDiv = document.getElementById('contextReactions');
-    reactionsDiv.innerHTML = `
-        <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '👍'); closeContextMenu();">👍</button>
-        <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '🔥'); closeContextMenu();">🔥</button>
-        <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '❤️'); closeContextMenu();">❤️</button>
-    `;
-
-    // Кнопки действий
+    if(reactionsDiv) {
+        reactionsDiv.innerHTML = `
+            <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '👍'); closeContextMenu();">👍</button>
+            <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '🔥'); closeContextMenu();">🔥</button>
+            <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '❤️'); closeContextMenu();">❤️</button>
+        `;
+    }
     const actionsDiv = document.getElementById('contextActions');
-    actionsDiv.innerHTML = '';
-    
-    // Ответить доступно всем
-    actionsDiv.innerHTML += `<button onclick="setReply('${msgId}'); closeContextMenu();">↩️ Ответить</button>`;
-    
-    if (isMine) {
-        actionsDiv.innerHTML += `<button onclick="editMessage('${msgId}'); closeContextMenu();">✏️ Изменить</button>`;
-        actionsDiv.innerHTML += `<button class="red-btn" onclick="deleteMessage('${currentRoomId}', '${msgId}'); closeContextMenu();">🗑️ Удалить</button>`;
+    if(actionsDiv) {
+        actionsDiv.innerHTML = `<button onclick="setReply('${msgId}'); closeContextMenu();">↩️ Ответить</button>`;
+        if (isMine) {
+            actionsDiv.innerHTML += `<button onclick="editMessage('${msgId}'); closeContextMenu();">✏️ Изменить</button>`;
+            actionsDiv.innerHTML += `<button class="red-btn" onclick="deleteMessage('${currentRoomId}', '${msgId}'); closeContextMenu();">🗑️ Удалить</button>`;
+        }
     }
 }
 
 function closeContextMenu() {
-    document.getElementById('msgContextMenu').style.display = 'none';
+    const menu = document.getElementById('msgContextMenu');
+    if(menu) menu.style.display = 'none';
     currentMenuMsgId = null;
 }
 
-// Закрываем меню при клике в любое другое место
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.msg-context-menu')) closeContextMenu();
-});
+document.addEventListener('click', (e) => { if (!e.target.closest('.msg-context-menu')) closeContextMenu(); });
 
 function editMessage(msgId) {
     const msg = messagesCache[msgId];
@@ -134,17 +120,15 @@ function editMessage(msgId) {
     const newText = prompt("Изменить сообщение:", msg.text);
     if (newText !== null && newText.trim() !== "" && newText !== msg.text) {
         database.ref(`chats/${currentRoomId}/${msgId}`).update({ text: newText, edited: true });
-        
-        // Обновляем превью в списке чатов, если это последнее сообщение
         const myId = localStorage.getItem('myUserId');
         if(currentRoomId !== 'global') {
             database.ref(`userChats/${myId}/${currentRoomId}`).once('value').then(s => {
-                if(s.val().lastMessage === msg.text) {
+                if(s.val() && s.val().lastMessage === msg.text) {
                     database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: newText });
                     if(!currentRoomId.startsWith('ch_')) {
                         const otherUid = currentRoomId.split('_').find(id => id !== myId);
                         database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then(os => {
-                            if(os.val().lastMessage === msg.text) {
+                            if(os.val() && os.val().lastMessage === msg.text) {
                                 database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ lastMessage: newText });
                             }
                         });
@@ -159,15 +143,19 @@ function setReply(msgId) {
     const msg = messagesCache[msgId];
     if(!msg) return;
     activeReplyContext = { name: msg.username || 'Аноним', text: msg.text };
-    document.getElementById('replyPreview').style.display = 'flex';
-    document.getElementById('replyPreviewName').textContent = activeReplyContext.name;
-    document.getElementById('replyPreviewText').textContent = activeReplyContext.text;
+    const rp = document.getElementById('replyPreview');
+    if(rp) {
+        rp.style.display = 'flex';
+        document.getElementById('replyPreviewName').textContent = activeReplyContext.name;
+        document.getElementById('replyPreviewText').textContent = activeReplyContext.text;
+    }
     document.getElementById('msgInput').focus();
 }
 
 function cancelReply() {
     activeReplyContext = null;
-    document.getElementById('replyPreview').style.display = 'none';
+    const rp = document.getElementById('replyPreview');
+    if(rp) rp.style.display = 'none';
 }
 
 function toggleReaction(roomId, msgId, emoji) {
@@ -181,28 +169,17 @@ function toggleReaction(roomId, msgId, emoji) {
     });
 }
 
-function deleteMessage(roomId, msgId) {
-    if(confirm("Удалить сообщение для всех?")) {
-        database.ref(`chats/${roomId}/${msgId}`).remove();
-    }
-}
-
-// --- УДАЛЕНИЕ ЧАТА ИЗ ПРОФИЛЯ ---
+function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение для всех?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }
 function deleteChatFromProfile() {
     if(currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
     if(confirm("Удалить этот чат из вашего списка?")) {
         const myId = localStorage.getItem('myUserId');
-        database.ref(`userChats/${myId}/${currentRoomId}`).remove().then(() => {
-            closeProfileModal();
-            closeChat();
-            loadMyChatsList();
-        });
+        database.ref(`userChats/${myId}/${currentRoomId}`).remove().then(() => { closeProfileModal(); closeChat(); loadMyChatsList(); });
     }
 }
-
-function openCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
-function closeCreateModal() { document.getElementById('createModal').style.display = 'none'; }
-function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }function leaveChannel() {
+function openCreateModal() { const m = document.getElementById('createModal'); if(m) m.style.display = 'flex'; }
+function closeCreateModal() { const m = document.getElementById('createModal'); if(m) m.style.display = 'none'; }
+function closeProfileModal() { const m = document.getElementById('profileModal'); if(m) m.style.display = 'none'; }function leaveChannel() {
     const myId = localStorage.getItem('myUserId');
     if(!currentProfileChannelId) return;
     if(!confirm("Вы уверены, что хотите отписаться?")) return;
@@ -221,10 +198,10 @@ function openProfileModal() {
     const subs = document.getElementById('profSubs');
     const leaveBtn = document.getElementById('leaveChannelBtn');
     const deleteChatBtn = document.getElementById('deleteChatBtn');
-
+    if(!modal) return;
     name.textContent = "Загрузка..."; modal.style.display = 'flex'; 
-    leaveBtn.style.display = 'none';
-    deleteChatBtn.style.display = 'none';
+    if(leaveBtn) leaveBtn.style.display = 'none';
+    if(deleteChatBtn) deleteChatBtn.style.display = 'none';
     av.style.backgroundImage = 'none';
 
     if (currentRoomId.startsWith('ch_')) {
@@ -235,31 +212,27 @@ function openProfileModal() {
                 name.textContent = data.name; uname.textContent = '@' + data.username;
                 av.textContent = '#'; av.style.background = '#e67e22'; av.style.backgroundColor = '#e67e22';
                 subs.textContent = (data.subscribers || 1) + " подписчиков";
-                leaveBtn.style.display = 'block';
+                if(leaveBtn) leaveBtn.style.display = 'block';
             }
         });
     } else {
-        deleteChatBtn.style.display = 'block'; // Показываем кнопку удаления для личных чатов
+        if(deleteChatBtn) deleteChatBtn.style.display = 'block';
         const otherUid = currentRoomId.split('_').find(id => id !== localStorage.getItem('myUserId'));
+        if(!otherUid) return;
         database.ref('users/' + otherUid).once('value').then((snap) => {
             const data = snap.val();
             if(data) {
-                name.textContent = data.displayName || data.username; 
-                uname.textContent = '@' + data.username;
+                name.textContent = data.displayName || data.username || "Без имени"; 
+                uname.textContent = '@' + (data.username || "unknown");
                 if(data.avatarUrl) {
                     av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent';
                 } else {
-                    av.textContent = data.avatar || data.username[0].toUpperCase(); av.style.backgroundColor = '#4fc3f7';
+                    av.textContent = data.avatar || (data.username ? data.username[0].toUpperCase() : '?'); av.style.backgroundColor = '#4fc3f7';
                 }
-                
-                // Проверяем онлайн статус
                 database.ref('status/' + otherUid).once('value').then(sSnap => {
                     const status = sSnap.val();
-                    if(status && status.state === 'online') {
-                        subs.innerHTML = `Пользователь <span class="online-dot"></span>`;
-                    } else {
-                        subs.textContent = "Пользователь (офлайн)";
-                    }
+                    if(status && status.state === 'online') subs.innerHTML = `Пользователь <span class="online-dot"></span>`;
+                    else subs.textContent = "Пользователь (офлайн)";
                 });
             }
         });
@@ -307,7 +280,9 @@ function joinChannelByCode() {
 function switchTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active'); element.classList.add('active');
+    const tab = document.getElementById('tab-' + tabId);
+    if(tab) tab.classList.add('active'); 
+    if(element) element.classList.add('active');
 }
 
 function applySettings() {
@@ -348,9 +323,7 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('mainApp').style.display = 'flex';
         document.getElementById('bottomNav').style.display = 'flex'; 
         localStorage.setItem('myUserId', user.uid); 
-        
-        setupOnlineStatus(user.uid); // Включаем онлайн-статус
-        
+        setupOnlineStatus(user.uid); 
         loadChat('global', 'Общий чат'); 
         loadMyChatsList(); 
         loadProfile(); 
@@ -370,16 +343,11 @@ function loadProfile() {
             document.getElementById('profileUsername').textContent = '@' + data.username;
             document.getElementById('newDisplayName').value = data.displayName || data.username;
             document.getElementById('newAvatarUrl').value = data.avatarUrl || '';
-            
             const profAvatar = document.getElementById('profileAvatar');
             if(data.avatarUrl) {
-                profAvatar.textContent = '';
-                profAvatar.style.backgroundImage = `url(${data.avatarUrl})`;
-                profAvatar.style.backgroundColor = 'transparent';
+                profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${data.avatarUrl})`; profAvatar.style.backgroundColor = 'transparent';
             } else {
-                profAvatar.style.backgroundImage = 'none';
-                profAvatar.textContent = data.avatar || data.username[0].toUpperCase();
-                profAvatar.style.backgroundColor = '#4fc3f7';
+                profAvatar.style.backgroundImage = 'none'; profAvatar.textContent = data.avatar || data.username[0].toUpperCase(); profAvatar.style.backgroundColor = '#4fc3f7';
             }
         }
     });
@@ -388,9 +356,7 @@ function loadProfile() {
     const newName = document.getElementById('newDisplayName').value.trim();
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
     if(!newName) return alert("Введите имя!");
-    
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
-    
     database.ref('users/' + myId).update({ displayName: newName, avatarUrl: finalAvatar }).then(() => {
         database.ref(`userChats/${myId}`).once('value').then(snap => {
             snap.forEach(child => {
@@ -413,8 +379,7 @@ function loadProfile() {
                 }
             });
         });
-        alert("Профиль обновлен!");
-        tempAvatarBase64 = null; 
+        alert("Профиль обновлен!"); tempAvatarBase64 = null; 
     });
 }
 
@@ -422,30 +387,31 @@ function liveSearch() {
     const searchName = document.getElementById('searchInput').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('searchResults');
     const myId = localStorage.getItem('myUserId');
-    if (!searchName) { resultsDiv.style.display = 'none'; return; }
-    resultsDiv.style.display = 'block'; resultsDiv.innerHTML = '<div style="padding:10px; color:gray;">Поиск...</div>';
+    if (!searchName) { if(resultsDiv) resultsDiv.style.display = 'none'; return; }
+    if(resultsDiv) { resultsDiv.style.display = 'block'; resultsDiv.innerHTML = '<div style="padding:10px; color:gray;">Поиск...</div>'; }
     database.ref('users').once('value', (userSnap) => {
-        resultsDiv.innerHTML = ''; let found = false;
+        if(resultsDiv) resultsDiv.innerHTML = ''; 
+        let found = false;
         userSnap.forEach((child) => {
             const user = child.val(); const uid = child.key;
-            if (user.username.includes(searchName) && uid !== myId) {
+            if (user.username && user.username.includes(searchName) && uid !== myId) {
                 found = true; const div = document.createElement('div'); div.className = 'search-user-item';
                 let avStyle = user.avatarUrl ? `background-image:url(${user.avatarUrl}); color:transparent;` : `background-color:#4fc3f7;`;
-                let avText = user.avatarUrl ? '' : (user.avatar || user.username[0]);
+                let avText = user.avatarUrl ? '' : (user.avatar || (user.username ? user.username[0] : '?'));
                 div.innerHTML = `<div class="avatar-placeholder" style="${avStyle}">${avText}</div><div>👤 @${user.username} <span style="color:gray; font-size:12px;">(${user.displayName || user.username})</span></div>`;
-                div.onclick = () => startPrivateChat(uid, user.displayName || user.username); resultsDiv.appendChild(div);
+                div.onclick = () => startPrivateChat(uid, user.displayName || user.username); if(resultsDiv) resultsDiv.appendChild(div);
             }
         });
         database.ref('channels').orderByChild('isPrivate').equalTo(false).once('value', (chSnap) => {
             chSnap.forEach((child) => {
                 const ch = child.val(); const chId = child.key;
-                if (ch.username.includes(searchName)) {
+                if (ch.username && ch.username.includes(searchName)) {
                     found = true; const div = document.createElement('div'); div.className = 'search-user-item';
                     div.innerHTML = `<div class="avatar-placeholder" style="background: #e67e22;">#</div><div>📢 ${ch.name} (@${ch.username})</div>`;
-                    div.onclick = () => joinPublicChannel(chId, ch.name); resultsDiv.appendChild(div);
+                    div.onclick = () => joinPublicChannel(chId, ch.name); if(resultsDiv) resultsDiv.appendChild(div);
                 }
             });
-            if (!found) resultsDiv.innerHTML = '<div style="padding:10px; color:gray;">Никого не найдено</div>';
+            if (!found && resultsDiv) resultsDiv.innerHTML = '<div style="padding:10px; color:gray;">Никого не найдено</div>';
         });
     });
 }
@@ -454,7 +420,7 @@ function joinPublicChannel(channelId, name) {
     const myId = localStorage.getItem('myUserId');
     database.ref(`userChats/${myId}/${channelId}`).set({ username: name, lastMessage: "Вы подписались", unreadCount: 0 }).then(() => {
         database.ref('channels/' + channelId + '/subscribers').transaction((subs) => (subs || 0) + 1);
-        document.getElementById('searchInput').value = ''; document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('searchInput').value = ''; const sR = document.getElementById('searchResults'); if(sR) sR.style.display = 'none';
         loadMyChatsList(); openChat(channelId, name, null);
     });
 }
@@ -463,19 +429,18 @@ function startPrivateChat(otherUid, otherDisplayName) {
     const myId = localStorage.getItem('myUserId');
     const roomId = [myId, otherUid].sort().join('_'); 
     database.ref('users/' + myId).once('value').then((snap) => {
-        const myData = snap.val();
-        const myUsername = myData.displayName || myData.username;
+        const myData = snap.val(); const myUsername = myData ? (myData.displayName || myData.username) : "Аноним";
         database.ref(`userChats/${myId}/${roomId}`).update({ username: otherDisplayName, lastMessage: "Чат создан", unreadCount: 0 });
         database.ref(`userChats/${otherUid}/${roomId}`).update({ username: myUsername, lastMessage: "Чат создан", unreadCount: 0 });
-        openChat(roomId, otherDisplayName, null);
-        document.getElementById('searchInput').value = ''; document.getElementById('searchResults').style.display = 'none';
+        openChat(roomId, otherDisplayName, null); document.getElementById('searchInput').value = ''; 
+        const sR = document.getElementById('searchResults'); if(sR) sR.style.display = 'none';
     });
 }
 
 function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
-    
+    if(!chatList) return;
     database.ref(`userChats/${myId}`).on('value', (snapshot) => {
         chatList.innerHTML = ''; 
         const globalDiv = document.createElement('div');
@@ -485,8 +450,7 @@ function loadMyChatsList() {
 
         if (snapshot.exists()) {
             snapshot.forEach((child) => {
-                const roomId = child.key; const data = child.val();
-                
+                const roomId = child.key; const data = child.val(); if(!data) return;
                 if (data.unreadCount > 0 && currentRoomId !== roomId) {
                     if (previousUnread[roomId] !== data.unreadCount) {
                         const audio = document.getElementById('notifySound');
@@ -497,26 +461,18 @@ function loadMyChatsList() {
 
                 const div = document.createElement('div'); 
                 div.className = currentRoomId === roomId ? 'chat-item active' : 'chat-item';
-                
                 let badgeHTML = '';
                 if (data.unreadCount > 0 && currentRoomId !== roomId) { badgeHTML = `<div class="unread-badge">${data.unreadCount}</div>`; }
                 let previewText = data.lastMessage || ""; if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
-                
-                const icon = roomId.startsWith('ch_') ? '📢' : '@';
-                const isChannel = roomId.startsWith('ch_');
+                const isChannel = roomId.startsWith('ch_'); const icon = isChannel ? '📢' : '@';
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
-                let avText = data.avatarUrl ? '' : (isChannel ? '#' : data.username[0].toUpperCase());
-                
+                let avText = data.avatarUrl ? '' : (isChannel ? '#' : (data.username ? data.username[0].toUpperCase() : '?'));
                 div.innerHTML = `
                     <div class="avatar-placeholder" style="${avStyle}">${avText}</div>
                     <div class="chat-info">
-                        <div class="chat-top">
-                            <div class="chat-name">${icon} ${data.username}</div>
-                            ${badgeHTML}
-                        </div>
+                        <div class="chat-top"><div class="chat-name">${icon} ${data.username || 'Без имени'}</div>${badgeHTML}</div>
                         <div class="chat-last-msg">${previewText}</div>
-                    </div>
-                `;
+                    </div>`;
                 div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
             });
         }
@@ -524,213 +480,137 @@ function loadMyChatsList() {
 }
 
 function openChat(roomId, title, element) {
-    currentRoomId = roomId;
-    cancelReply();
-    closeContextMenu();
+    currentRoomId = roomId; cancelReply(); closeContextMenu();
     const chatList = document.getElementById('chatList');
-    for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); }
+    if(chatList) { for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); } }
     if(element) element.classList.add('active'); else loadMyChatsList(); 
     if (roomId !== 'global') { database.ref(`userChats/${localStorage.getItem('myUserId')}/${roomId}`).update({ unreadCount: 0 }); }
     loadChat(roomId, title);
-    document.getElementById('chatArea').classList.add('active');
-    document.getElementById('bottomNav').style.display = 'none'; 
+    const cArea = document.getElementById('chatArea'); if(cArea) cArea.classList.add('active');
+    const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'none'; 
 }
 
 function closeChat() {
-    document.getElementById('chatArea').classList.remove('active');
+    const cArea = document.getElementById('chatArea'); if(cArea) cArea.classList.remove('active');
     if (currentRoomRef) { currentRoomRef.off(); }
     if (currentTypingRef) { currentTypingRef.off(); }
-    currentRoomId = 'global'; 
-    loadMyChatsList(); 
-    document.getElementById('bottomNav').style.display = 'flex';
-}
-
-function loadChat(roomId, title) {
-    document.getElementById('chatTitle').textContent = title;
-    const messagesContainer = document.getElementById('messages');
-    messagesContainer.innerHTML = ''; 
+    if (currentStatusRef) { currentStatusRef.off(); } 
+    currentRoomId = 'global'; loadMyChatsList(); 
+    const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'flex';
+}function loadChat(roomId, title) {
+    const titleEl = document.getElementById('chatTitle'); if(titleEl) titleEl.textContent = title || 'Чат';
+    const messagesContainer = document.getElementById('messages'); if(messagesContainer) messagesContainer.innerHTML = ''; 
     messagesCache = {}; 
-    
     if (currentRoomRef) { currentRoomRef.off(); }
     if (currentTypingRef) { currentTypingRef.off(); }
-    
+    if (currentStatusRef) { currentStatusRef.off(); }
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
-    
     let typingState = { name: "", isTyping: false };
     let onlineState = false;
 
     function updateTitle() {
-        const titleEl = document.getElementById('chatTitle');
-        if (typingState.isTyping) {
-            titleEl.textContent = `${typingState.name} печатает...`;
-        } else if (onlineState && roomId !== 'global' && !roomId.startsWith('ch_')) {
-            titleEl.innerHTML = `${title} <span class="online-dot"></span>`;
-        } else {
-            titleEl.textContent = title;
-        }
+        const tEl = document.getElementById('chatTitle'); if(!tEl) return;
+        if (typingState.isTyping) tEl.textContent = `${typingState.name} печатает...`;
+        else if (onlineState && roomId !== 'global' && !roomId.startsWith('ch_')) tEl.innerHTML = `${title || 'Чат'} <span class="online-dot"></span>`;
+        else tEl.textContent = title || 'Чат';
     }
 
     currentTypingRef = database.ref('typing/' + roomId);
     currentTypingRef.on('value', (snap) => {
-        const typingData = snap.val();
-        typingState.isTyping = false;
-        if (typingData) {
-            for (const uid in typingData) {
-                if (uid !== myId && typingData[uid].isTyping) {
-                    typingState.isTyping = true;
-                    typingState.name = typingData[uid].name; 
-                }
-            }
-        }
+        const typingData = snap.val(); typingState.isTyping = false;
+        if (typingData) { for (const uid in typingData) { if (uid !== myId && typingData[uid].isTyping) { typingState.isTyping = true; typingState.name = typingData[uid].name; } } }
         updateTitle();
     });
 
     if (roomId !== 'global' && !roomId.startsWith('ch_')) {
         const otherUid = roomId.split('_').find(id => id !== myId);
-        database.ref('status/' + otherUid).on('value', (sSnap) => {
-            const status = sSnap.val();
-            onlineState = (status && status.state === 'online');
-            updateTitle();
-        });
+        if(otherUid) {
+            currentStatusRef = database.ref('status/' + otherUid);
+            currentStatusRef.on('value', (sSnap) => { const status = sSnap.val(); onlineState = (status && status.state === 'online'); updateTitle(); });
+        }
     }
 
     if (roomId.startsWith('ch_')) {
         database.ref('channels/' + roomId).once('value').then((snap) => {
             const chData = snap.val();
-            if (chData && chData.owner !== myId) { inputArea.style.display = 'none'; } else { inputArea.style.display = 'flex'; }
+            if (chData && chData.owner !== myId) { if(inputArea) inputArea.style.display = 'none'; } else { if(inputArea) inputArea.style.display = 'flex'; }
         });
-    } else { inputArea.style.display = 'flex'; }
+    } else { if(inputArea) inputArea.style.display = 'flex'; }
 
     let viewedStr = localStorage.getItem(`viewed_${myId}_${roomId}`);
-    let viewedMessages = viewedStr ? JSON.parse(viewedStr) : [];
+    let viewedMessages = []; try { if(viewedStr) viewedMessages = JSON.parse(viewedStr); } catch(e) { console.error(e); }
 
     currentRoomRef = database.ref('chats/' + roomId);
-    
     currentRoomRef.on('child_added', function(snapshot) {
-        const msg = snapshot.val(); const msgId = snapshot.key;
-        messagesCache[msgId] = msg; 
+        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg; 
         renderMessage(msgId, msg, roomId, myId, messagesContainer, viewedMessages);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
         if (msg.userId !== myId && roomId !== 'global') { database.ref(`userChats/${myId}/${roomId}`).update({ unreadCount: 0 }); }
     });
 
-    currentRoomRef.on('child_removed', function(snapshot) {
-        const el = document.getElementById('msg_wrap_' + snapshot.key);
-        if (el) el.remove();
-    });
+    currentRoomRef.on('child_removed', function(snapshot) { const el = document.getElementById('msg_wrap_' + snapshot.key); if (el) el.remove(); });
 
     currentRoomRef.on('child_changed', function(snapshot) {
-        const msg = snapshot.val(); const msgId = snapshot.key;
-        messagesCache[msgId] = msg; 
-        const reactionsDiv = document.getElementById('reactions_' + msgId);
-        if (reactionsDiv) { reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}); }
-        const viewsSpan = document.getElementById('views_' + msgId);
-        if(viewsSpan) viewsSpan.textContent = msg.views || 0;
-        
-        // Обновляем текст, если сообщение отредактировали
+        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg; 
+        const reactionsDiv = document.getElementById('reactions_' + msgId); if (reactionsDiv) { reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}); }
+        const viewsSpan = document.getElementById('views_' + msgId); if(viewsSpan) viewsSpan.textContent = msg.views || 0;
         const textDiv = document.getElementById('text_' + msgId);
-        if(textDiv && msg.edited) {
-            textDiv.innerHTML = `${msg.text} <span style="font-size:10px; color:#aaa;">(изм.)</span> <span class="msg-time">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
-        }
+        if(textDiv && msg.edited) textDiv.innerHTML = `${msg.text} <span style="font-size:10px; color:#aaa;">(изм.)</span> <span class="msg-time">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
     });
 }
 
 function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received');
-    wrapper.id = 'msg_wrap_' + msgId;
-    
-    const newMessage = document.createElement('div');
-    newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
-    
-    // Добавляем клик для меню
+    if(!container) return;
+    const wrapper = document.createElement('div'); wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received'); wrapper.id = 'msg_wrap_' + msgId;
+    const newMessage = document.createElement('div'); newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
     newMessage.onclick = function(e) { showMessageActions(e, msgId, msg.userId === myId); };
-    
     let replyHTML = '';
-    if (msg.replyTo) {
-        replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
-    }
-    
+    if (msg.replyTo) replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
     const timeString = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
-    let senderHTML = '';
     if (msg.userId !== myId && msg.username) {
         database.ref('users/' + msg.userId).once('value').then((uSnap) => {
-            const uData = uSnap.val();
-            let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
-            let avText = uData && uData.avatarUrl ? '' : (msg.username[0].toUpperCase());
-            let avBlock = `<div class="sender-avatar" style="${avStyle}">${avText}</div>`;
-            const senderInfo = document.createElement('div');
-            senderInfo.className = 'sender-info';
-            senderInfo.innerHTML = `${avBlock}<span class="sender-name">${msg.username}</span>`;
+            const uData = uSnap.val(); let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
+            let avText = uData && uData.avatarUrl ? '' : (msg.username ? msg.username[0].toUpperCase() : '?');
+            const senderInfo = document.createElement('div'); senderInfo.className = 'sender-info';
+            senderInfo.innerHTML = `<div class="sender-avatar" style="${avStyle}">${avText}</div><span class="sender-name">${msg.username}</span>`;
             wrapper.insertBefore(senderInfo, newMessage);
         });
     }
-    
     const editedMark = msg.edited ? `<span style="font-size:10px; color:#aaa;">(изм.)</span>` : '';
     newMessage.innerHTML = replyHTML + `<div id="text_${msgId}">${msg.text} ${editedMark} <span class="msg-time">${timeString}</span></div>`;
     wrapper.appendChild(newMessage);
-
     if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
-        viewedMessages.push(msgId);
-        localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages));
+        viewedMessages.push(msgId); localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages));
         database.ref(`chats/${roomId}/${msgId}/views`).transaction((v) => (v || 0) + 1);
     }
-
-    let viewsHTML = '';
-    if (roomId.startsWith('ch_')) {
-        viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`;
-    }
-    
-    const reactionsDiv = document.createElement('div');
-    reactionsDiv.id = 'reactions_' + msgId;
-    reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {});
-
-    wrapper.appendChild(reactionsDiv);
-    if (viewsHTML) { wrapper.insertAdjacentHTML('beforeend', viewsHTML); }
-
-    container.appendChild(wrapper);
+    let viewsHTML = ''; if (roomId.startsWith('ch_')) viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`;
+    const reactionsDiv = document.createElement('div'); reactionsDiv.id = 'reactions_' + msgId; reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {});
+    wrapper.appendChild(reactionsDiv); if (viewsHTML) wrapper.insertAdjacentHTML('beforeend', viewsHTML); container.appendChild(wrapper);
 }
 
 function getReactionsHTML(reactions) {
     let html = '';
-    for (const [emoji, users] of Object.entries(reactions)) {
-        if (users.length > 0) {
-            html += `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`;
-        }
-    }
+    for (const [emoji, users] of Object.entries(reactions)) { if (users.length > 0) html += `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`; }
     return html;
 }
 
 function sendMessage() {
-    const input = document.getElementById('msgInput');
-    const text = input.value;
-    const myId = localStorage.getItem('myUserId');
-
-    if (text.length > 500) {
-        return alert("Сообщение слишком длинное! Максимум 500 символов.");
-    }
-
+    const input = document.getElementById('msgInput'); if(!input) return;
+    const text = input.value; const myId = localStorage.getItem('myUserId');
+    if (text.length > 500) return alert("Сообщение слишком длинное! Максимум 500 символов.");
     if (text.trim() !== "" && myId) {
         database.ref('users/' + myId).once('value').then((snap) => {
-            const myData = snap.val();
-            const myName = myData ? myData.displayName || myData.username : "Аноним";
-            const myAvatar = myData ? myData.avatarUrl : null;
-            
+            const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
             const msgData = { text: text, userId: myId, username: myName, timestamp: Date.now(), views: 0 };
-            if (activeReplyContext) { msgData.replyTo = activeReplyContext; }
-
+            if (activeReplyContext) msgData.replyTo = activeReplyContext;
             database.ref('chats/' + currentRoomId).push(msgData).then(() => {
-                input.value = ""; cancelReply(); input.focus();
-                database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false });
-                clearTimeout(typingTimeout);
-                
+                input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
                 if (currentRoomId !== 'global') {
                     database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
                     if (!currentRoomId.startsWith('ch_')) {
                         const otherUid = currentRoomId.split('_').find(id => id !== myId);
-                        database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then((s) => {
+                        if(otherUid) database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then((s) => {
                             const currentUnread = s.val() && s.val().unreadCount ? s.val().unreadCount : 1;
                             database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ lastMessage: text, unreadCount: currentUnread + 1, username: myName, avatarUrl: myAvatar });
                         });
@@ -741,27 +621,15 @@ function sendMessage() {
     }
 }
 
-document.getElementById('msgInput').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') sendMessage();
-});
-
-const tg = window.Telegram.WebApp;
-if(tg) { tg.expand(); }
-
+document.getElementById('msgInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') sendMessage(); });
+const tg = window.Telegram.WebApp; if(tg) { tg.expand(); }
 if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && !localStorage.getItem('myUserId')) {
-    const tgUser = tg.initDataUnsafe.user;
-    const tgEmail = `tg_${tgUser.id}@wizchat.com`;
-    const tgPassword = `telegram_secret_${tgUser.id}`;
-
-    auth.signInWithEmailAndPassword(tgEmail, tgPassword)
-        .catch((error) => {
-            if (error.code === 'auth/user-not-found') {
-                auth.createUserWithEmailAndPassword(tgEmail, tgPassword)
-                    .then((user) => {
-                        database.ref('users/' + user.user.uid).set({ username: tgUser.username || 'tg_user_' + tgUser.id, displayName: tgUser.first_name || 'Гость', avatar: tgUser.first_name ? tgUser.first_name[0].toUpperCase() : 'T' });
-                        database.ref('usernames/' + (tgUser.username || 'tg_' + tgUser.id)).set({ type: 'user', id: user.user.uid });
-                    });
-            }
+    const tgUser = tg.initDataUnsafe.user; const tgEmail = `tg_${tgUser.id}@wizchat.com`; const tgPassword = `telegram_secret_${tgUser.id}`;
+    auth.signInWithEmailAndPassword(tgEmail, tgPassword).catch((error) => {
+        if (error.code === 'auth/user-not-found') auth.createUserWithEmailAndPassword(tgEmail, tgPassword).then((user) => {
+            database.ref('users/' + user.user.uid).set({ username: tgUser.username || 'tg_user_' + tgUser.id, displayName: tgUser.first_name || 'Гость', avatar: tgUser.first_name ? tgUser.first_name[0].toUpperCase() : 'T' });
+            database.ref('usernames/' + (tgUser.username || 'tg_' + tgUser.id)).set({ type: 'user', id: user.user.uid });
         });
+    });
 }
 // КОНЕЦ КОДА
