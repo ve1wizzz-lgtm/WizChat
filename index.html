@@ -50,10 +50,7 @@
                 </div>
                 <div class="search-results" id="searchResults" style="display: none;"></div>
             </div>
-            <div class="header" style="display: flex; justify-content: space-between; align-items: center; padding-right: 15px;">
-                Мои чаты
-                <button onclick="openCreateModal()" style="background: #2b5278; border: none; color: white; padding: 5px 10px; border-radius: 10px; cursor: pointer;">➕</button>
-            </div>
+            <div class="header" style="padding: 15px;">Мои чаты</div>
             <div class="chat-list" id="chatList"></div>
         </div>
     </div>
@@ -123,7 +120,7 @@
                 <button onclick="closeProfileModal()" style="background: var(--bg-panel); border: 1px solid var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
-
+        
         <div class="modal-overlay" id="membersModal">
             <div class="modal-content" style="padding: 15px;">
                 <h3 style="margin-bottom: 15px;" id="membersModalTitle">Участники</h3>
@@ -170,6 +167,8 @@
                 <button onclick="sendMessage()">➤</button>
             </div>
         </div>
+
+        <button onclick="openCreateModal()" id="fabCreate" style="position: absolute; bottom: 85px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: #2b5278; color: white; font-size: 30px; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
 
         <div class="bottom-nav" id="bottomNav">
             <div class="nav-item active" onclick="switchTab('chats', this)">💬<br><span>Чаты</span></div>
