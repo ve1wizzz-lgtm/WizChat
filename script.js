@@ -1,5 +1,4 @@
-
-    return false;
+return false;
 }; const firebaseConfig = { apiKey: "AIzaSyD99mv9x7tSAItOJ4UooTyPhNlewRGQnh0", authDomain: "wizchat-3e52f.firebaseapp.com", projectId: "wizchat-3e52f", storageBucket: "wizchat-3e52f.firebasestorage.app", messagingSenderId: "125275309502", appId: "1:125275309502:web:b30f41e2686976a46765ef", databaseURL: "https://wizchat-3e52f-default-rtdb.firebaseio.com" };
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const database = firebase.database(); const auth = firebase.auth();
