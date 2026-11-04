@@ -77,13 +77,28 @@
                 <label>Имя (Никнейм)</label>
                 <input type="text" id="newDisplayName" placeholder="Введите имя">
                 
-                <label>Буква или Эмодзи (если нет фото)</label>
-                <input type="text" id="newAvatarText" maxlength="2" placeholder="🚀">
+                <label>Загрузить фото с телефона</label>
+                <!-- Скрытый инпут для выбора файла -->
+                <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
                 
-                <label>Ссылка на картинку (Avatar URL)</label>
+                <label>Или вставьте ссылку на фото</label>
                 <input type="text" id="newAvatarUrl" placeholder="https://...">
                 
                 <button onclick="saveProfile()">Сохранить профиль</button>
+            </div>
+        </div>
+
+        <!-- ОКНО ПРОСМОТРА ЧУЖОГО ПРОФИЛЯ (Как в ТГ) -->
+        <div class="modal-overlay" id="profileModal" style="display: none;">
+            <div class="modal-content" style="text-align: center; padding: 30px 20px;">
+                <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; width: 100px; height: 100px; font-size: 40px;">#</div>
+                <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
+                <p id="profUsername" style="color: #4fc3f7; margin-bottom: 15px; font-size: 16px;">@...</p>
+                <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
+                
+                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px;">Отписаться</button>
+                <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
 
@@ -128,17 +143,6 @@
                 <input type="text" id="joinCode" placeholder="Секретный код">
                 <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
                 <button onclick="closeCreateModal()" style="background: #c0392b; margin-top: 10px;">Отмена</button>
-            </div>
-        </div>
-
-        <div class="modal-overlay" id="profileModal" style="display: none;">
-            <div class="modal-content" style="text-align: center;">
-                <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; background: #e67e22;">#</div>
-                <h3 id="profName" style="font-size: 24px;">Загрузка...</h3>
-                <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px;">@...</p>
-                <p id="profSubs" style="color: var(--text-muted); margin-bottom: 20px;">0 подписчиков</p>
-                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px;">Отписаться</button>
-                <button onclick="closeProfileModal()" style="background: #2b5278;">Закрыть</button>
             </div>
         </div>
 
