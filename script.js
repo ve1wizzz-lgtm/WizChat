@@ -433,3 +433,27 @@ function leaveChannel() {
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
     });
 }
+// --- ИНТЕГРАЦИЯ С TELEGRAM MINI APP ---
+const tg = window.Telegram.WebApp;
+tg.expand(); // Разворачиваем на весь экран
+
+if (tg.initDataUnsafe && tg.initDataUnsafe.user && !localStorage.getItem('myUserId')) {
+    const tgUser = tg.initDataUnsafe.user;
+    const tgEmail = `tg_${tgUser.id}@wizchat.com`;
+    const tgPassword = `telegram_secret_${tgUser.id}`;
+
+    auth.signInWithEmailAndPassword(tgEmail, tgPassword)
+        .catch((error) => {
+            if (error.code === 'auth/user-not-found') {
+                auth.createUserWithEmailAndPassword(tgEmail, tgPassword)
+                    .then((user) => {
+                        database.ref('users/' + user.user.uid).set({ 
+                            username: tgUser.username || 'tg_user_' + tgUser.id, 
+                            displayName: tgUser.first_name || 'Гость', 
+                            avatar: tgUser.first_name ? tgUser.first_name[0].toUpperCase() : 'T'
+                        });
+                        database.ref('usernames/' + (tgUser.username || 'tg_' + tgUser.id)).set({ type: 'user', id: user.user.uid });
+                    });
+            }
+        });
+}
