@@ -10,20 +10,19 @@
 }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
 
-/* ЖЕСТКИЙ ФИКС ВЫСОТЫ */
+/* ЖЕСТКИЙ ФИКС ВЫСОТЫ И ШИРИНЫ */
 html, body { 
     height: 100%; 
+    width: 100%;
     margin: 0; 
     padding: 0; 
     overflow: hidden; 
     background-color: var(--bg-main); 
     color: var(--text-main); 
 }
-body { display: flex; justify-content: center; }
 
 .app { 
     width: 100%; 
-    max-width: 400px; 
     height: 100%; 
     display: flex; 
     flex-direction: column; 
