@@ -649,6 +649,6 @@ auth.onAuthStateChanged((user) => {
         setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile();
     } else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
 });
-const if (window.Telegram && window.Telegram.WebApp) {
+if (window.Telegram && window.Telegram.WebApp) {
     window.Telegram.WebApp.expand();
 }
