@@ -12,17 +12,19 @@ if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const database = firebase.database();
 const auth = firebase.auth();
 
-let currentRoomId = 'global';
-let currentRoomRef = null;
-let currentTypingRef = null;
-let currentStatusRef = null;
-let currentProfileChannelId = null;
-let currentProfileUid = null;
+let currentRoomId = 'global'; 
+let currentRoomRef = null; 
+let currentTypingRef = null; 
+let currentStatusRef = null; 
+let currentBlockRef1 = null;
+let currentBlockRef2 = null;
+let currentProfileChannelId = null; 
+let currentProfileUid = null; 
 let activeReplyContext = null;
-let messagesCache = {};
+let messagesCache = {}; 
 let typingTimeout;
 let tempAvatarBase64 = null;
-let previousUnread = {};
+let previousUnread = {}; 
 let currentMenuMsgId = null;
 let menuCloseTimeout = null;
 let allUsersCache = [];
@@ -40,7 +42,9 @@ let recordingTimeout;function setupOnlineStatus(uid) {
 }
 
 function showModal(id) { const el = document.getElementById(id); if(el) el.classList.add('show'); }
-function hideModal(id) { const el = document.getElementById(id); if(el) el.classList.remove('show'); }function openLightbox(src) {
+function hideModal(id) { const el = document.getElementById(id); if(el) el.classList.remove('show'); }
+
+function openLightbox(src) {
     const lb = document.getElementById('imageLightbox');
     document.getElementById('lightboxImg').src = src;
     lb.style.display = 'flex';
@@ -62,6 +66,7 @@ function toggleChatSearch() {
         filterChatMessages('');
     }
 }
+
 function filterChatMessages(query) {
     const wrappers = document.querySelectorAll('.message-wrapper');
     const lowerQuery = query.toLowerCase();
@@ -176,7 +181,7 @@ function sendChatImage(base64Image) {
     const myId = localStorage.getItem('myUserId');
     if (!myId) return;
     database.ref('users/' + myId).once('value').then((snap) => {
-        const myData = snap.val();
+        const myData = snap.val(); 
         const myName = myData ? myData.displayName || myData.username : "Аноним";
         const msgData = { text: "📷 Фотография", image: base64Image, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false };
         if (activeReplyContext) msgData.replyTo = activeReplyContext;
@@ -204,11 +209,13 @@ function sendChatImage(base64Image) {
             });
         }
     });
-}function sendChatVoice(base64Audio) {
+}
+
+function sendChatVoice(base64Audio) {
     const myId = localStorage.getItem('myUserId');
     if (!myId) return;
     database.ref('users/' + myId).once('value').then((snap) => {
-        const myData = snap.val();
+        const myData = snap.val(); 
         const myName = myData ? myData.displayName || myData.username : "Аноним";
         const msgData = { text: "🎤 Голосовое", audio: base64Audio, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false };
         if (activeReplyContext) msgData.replyTo = activeReplyContext;
@@ -328,7 +335,7 @@ document.getElementById('msgInput').addEventListener('input', () => {
 }
 
 function showMessageActions(event, msgId, isMine) {
-    if(event) event.stopPropagation();
+    if(event) event.stopPropagation(); 
     const msg = messagesCache[msgId];
     if(!msg) return;
     currentMenuMsgId = msgId;
@@ -340,7 +347,7 @@ function showMessageActions(event, msgId, isMine) {
     const rect = event.target.getBoundingClientRect();
     if(menu) {
         menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
-        menu.style.top = Math.max(10, rect.top - 120) + 'px';
+        menu.style.top = Math.max(10, rect.top - 120) + 'px'; 
     }
     const quickReacts = ['❤️', '👍', '🔥', '😂', '😢'];
     let reactHTML = `<div class="reaction-list-5">`;
@@ -395,7 +402,9 @@ function editMessage(msgId) {
     if (newText !== null && newText.trim() !== "" && newText !== msg.text) {
         database.ref(`chats/${currentRoomId}/${msgId}`).update({ text: newText, edited: true });
     }
-}function setReply(msgId) {
+}
+
+function setReply(msgId) {
     const msg = messagesCache[msgId];
     if(!msg) return;
     activeReplyContext = { name: msg.username || 'Аноним', text: msg.text };
@@ -412,20 +421,19 @@ function cancelReply() {
     activeReplyContext = null;
     const rp = document.getElementById('replyPreview');
     if(rp) rp.style.display = 'none';
-}
-
-function toggleReaction(event, roomId, msgId, emoji) {
+}function toggleReaction(event, roomId, msgId, emoji) {
     spawnReactionEffect(event, emoji);
     const myId = localStorage.getItem('myUserId');
-    const msgRef = database.ref(`chats/${roomId}/${msgId}`);
-    msgRef.once('value').then(snap => {
-        const msg = snap.val();
-        if(!msg) return;
-        let reactions = msg.reactions || {};
+    const msgRef = database.ref(`chats/${roomId}/${msgId}/reactions`);
+    
+    // Теперь через транзакцию (исправлен баг с перезаписью)
+    msgRef.transaction((reactions) => {
+        reactions = reactions || {};
         let hasReactedWithThis = false;
         if (reactions[emoji] && reactions[emoji].includes(myId)) { hasReactedWithThis = true; }
+        
         for (let key in reactions) {
-            if (reactions[key].includes(myId)) {
+            if (Array.isArray(reactions[key]) && reactions[key].includes(myId)) {
                 reactions[key] = reactions[key].filter(id => id !== myId);
                 if (reactions[key].length === 0) delete reactions[key];
             }
@@ -434,11 +442,13 @@ function toggleReaction(event, roomId, msgId, emoji) {
             if (!reactions[emoji]) reactions[emoji] = [];
             reactions[emoji].push(myId);
         }
-        msgRef.child('reactions').set(reactions);
+        return reactions;
     });
 }
 
-function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }function deleteChatFromProfile() {
+function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }
+
+function deleteChatFromProfile() {
     if(currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
     if(confirm("Удалить этот чат? (История удалится)")) {
         const myId = localStorage.getItem('myUserId');
@@ -460,9 +470,7 @@ function leaveChannel() {
         database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
     });
-}
-
-function toggleBlockUser() {
+}function toggleBlockUser() {
     if (!currentProfileUid) return;
     const myId = localStorage.getItem('myUserId');
     const blockRef = database.ref(`users/${myId}/blocked/${currentProfileUid}`);
@@ -476,7 +484,7 @@ function toggleBlockUser() {
                 if (currentRoomId.includes(currentProfileUid)) loadChat(currentRoomId, document.getElementById('chatTitle').textContent);
             });
         } else {
-            const delChat = confirm("Заблокировать пользователя?\nОК = Удалить чат.\nОтмена = Оставить историю.");
+            const delChat = confirm("Заблокировать пользователя? \nОК = Удалить чат.\nОтмена = Оставить историю.");
             blockRef.set(true).then(() => {
                 if(delChat) {
                     const roomId = [myId, currentProfileUid].sort().join('_');
@@ -493,7 +501,9 @@ function toggleBlockUser() {
             });
         }
     });
-}function unblockCurrentUser() {
+}
+
+function unblockCurrentUser() {
     const myId = localStorage.getItem('myUserId');
     if (!currentRoomId || currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
     const otherUid = currentRoomId.split('_').find(id => id !== myId);
@@ -525,7 +535,6 @@ function loadBlockedUsersList() {
         });
     });
 }
-
 function unblockFromSettings(uid) {
     const myId = localStorage.getItem('myUserId');
     database.ref(`users/${myId}/blocked/${uid}`).remove().then(() => { loadBlockedUsersList(); });
@@ -542,7 +551,7 @@ function unblockFromSettings(uid) {
     const writeBtn = document.getElementById('writeMessageBtn');
     const blockBtn = document.getElementById('blockUserBtn');
     const muteCont = document.getElementById('muteSettingContainer');
-
+    
     if(!modal) return;
     name.textContent = "Загрузка..."; showModal('profileModal');
     if(leaveBtn) leaveBtn.style.display = 'none';
@@ -572,16 +581,18 @@ function unblockFromSettings(uid) {
     } else {
         currentProfileChannelId = null;
         const otherUid = currentRoomId.split('_').find(id => id !== localStorage.getItem('myUserId'));
-        if(otherUid) {
-            currentProfileUid = otherUid; loadUserProfileInModal(otherUid);
-            if(deleteChatBtn) deleteChatBtn.style.display = 'block';
+        if(otherUid) { 
+            currentProfileUid = otherUid; loadUserProfileInModal(otherUid); 
+            if(deleteChatBtn) deleteChatBtn.style.display = 'block'; 
             if(muteCont) muteCont.style.display = 'flex';
             database.ref(`userChats/${localStorage.getItem('myUserId')}/${currentRoomId}/muted`).once('value').then(mSnap => {
                 document.getElementById('muteToggle').checked = mSnap.val() === true;
             });
         }
     }
-}function loadUserProfileInModal(uid) {
+}
+
+function loadUserProfileInModal(uid) {
     const av = document.getElementById('profAvatar');
     const name = document.getElementById('profName');
     const uname = document.getElementById('profUsername');
@@ -594,7 +605,7 @@ function unblockFromSettings(uid) {
     database.ref('users/' + uid).once('value').then((snap) => {
         const data = snap.val();
         if(data) {
-            name.textContent = data.displayName || data.username || "Без имени";
+            name.textContent = data.displayName || data.username || "Без имени"; 
             uname.textContent = '@' + (data.username || "unknown");
             bio.textContent = data.bio || "Описание не добавлено...";
             if(data.avatarUrl) { av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent'; }
@@ -622,7 +633,7 @@ function unblockFromSettings(uid) {
 function startChatFromProfile() {
     if (!currentProfileUid) return;
     const myId = localStorage.getItem('myUserId');
-    const roomId = [myId, currentProfileUid].sort().join('_');
+    const roomId = [myId, currentProfileUid].sort().join('_'); 
     database.ref('users/' + myId).once('value').then((snap) => {
         const myData = snap.val(); const myUsername = myData ? (myData.displayName || myData.username) : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
         database.ref('users/' + currentProfileUid).once('value').then((otherSnap) => {
@@ -650,7 +661,9 @@ function startChatFromProfile() {
             btn.disabled = false; closeCreateModal(); loadMyChatsList();
         });
     });
-}function joinChannelByCode() {
+}
+
+function joinChannelByCode() {
     const code = document.getElementById('joinCode').value.trim();
     const myId = localStorage.getItem('myUserId');
     if (!code) return alert("Введи код!");
@@ -665,9 +678,7 @@ function startChatFromProfile() {
             });
         } else { alert("Неверный код."); }
     });
-}
-
-function switchTab(tabId, element) {
+}function switchTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     const tab = document.getElementById('tab-' + tabId);
@@ -683,7 +694,9 @@ function applySettings() {
     document.body.classList.add('font-' + (localStorage.getItem('msgFontSize') || 'medium'));
 }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
-function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }function registerUser() {
+function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
+
+function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     if (!username || username.length < 3) return alert("Юзернейм минимум 3 символа");
@@ -694,9 +707,7 @@ function changeFontSize(size) { localStorage.setItem('msgFontSize', size); apply
         auth.createUserWithEmailAndPassword(email, password)
             .then((userCredential) => {
                 const uid = userCredential.user.uid;
-                database.ref('users/' + uid).set({
-                    username: username, displayName: username, bio: "", avatarUrl: null
-                });
+                database.ref('users/' + uid).set({ username: username, displayName: username, bio: "", avatarUrl: null });
                 database.ref('usernames/' + username).set({ type: 'user', id: uid });
                 alert("Регистрация успешна! Теперь войди.");
             })
@@ -776,8 +787,6 @@ function saveProfile() {
 
     database.ref('userChats/' + myId).once('value').then(snap => {
         const chats = snap.val() || {};
-
-        // Общий чат — всегда первым
         const globalDiv = document.createElement('div');
         globalDiv.className = 'chat-item';
         globalDiv.innerHTML = `<div class="avatar-placeholder" style="background-color:#4fc3f7;">#</div><div class="chat-info"><div class="chat-top"><div class="chat-name">Общий чат</div></div><div class="chat-last-msg">Для всех</div></div>`;
@@ -835,11 +844,11 @@ function liveSearch() {
     document.getElementById('chatSearchContainer').classList.remove('open');
     const chatList = document.getElementById('chatList');
     if(chatList) { for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); } }
-    if(element) element.classList.add('active'); else loadMyChatsList();
+    if(element) element.classList.add('active'); else loadMyChatsList(); 
     if (roomId !== 'global') { database.ref(`userChats/${localStorage.getItem('myUserId')}/${roomId}`).update({ unreadCount: 0 }); }
     loadChat(roomId, title);
     const cArea = document.getElementById('chatArea'); if(cArea) cArea.classList.add('active');
-    const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'none';
+    const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'none'; 
 }
 
 function closeChat() {
@@ -847,15 +856,19 @@ function closeChat() {
     if (currentRoomRef) { currentRoomRef.off(); }
     if (currentTypingRef) { currentTypingRef.off(); }
     if (currentStatusRef) { currentStatusRef.off(); }
-    currentRoomId = 'global'; loadMyChatsList();
+    if (currentBlockRef1) { currentBlockRef1.off(); currentBlockRef1 = null; }
+    if (currentBlockRef2) { currentBlockRef2.off(); currentBlockRef2 = null; }
+    currentRoomId = 'global'; loadMyChatsList(); 
     const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'flex';
 }function loadChat(roomId, title) {
     const titleEl = document.getElementById('chatTitle'); if(titleEl) titleEl.textContent = title || 'Чат';
-    const messagesContainer = document.getElementById('messages'); if(messagesContainer) messagesContainer.innerHTML = '';
-    messagesCache = {};
+    const messagesContainer = document.getElementById('messages'); if(messagesContainer) messagesContainer.innerHTML = ''; 
+    messagesCache = {}; 
     if (currentRoomRef) { currentRoomRef.off(); }
     if (currentTypingRef) { currentTypingRef.off(); }
     if (currentStatusRef) { currentStatusRef.off(); }
+    if (currentBlockRef1) { currentBlockRef1.off(); currentBlockRef1 = null; }
+    if (currentBlockRef2) { currentBlockRef2.off(); currentBlockRef2 = null; }
     const inputArea = document.getElementById('messageInputArea');
     const blockedBanner = document.getElementById('chatBlockedBanner');
     const youBlockedBanner = document.getElementById('youAreBlockedBanner');
@@ -881,18 +894,22 @@ function closeChat() {
         if(otherUid) {
             currentStatusRef = database.ref('status/' + otherUid);
             currentStatusRef.on('value', (sSnap) => { const status = sSnap.val(); onlineState = (status && status.state === 'online'); updateTitle(); });
-            database.ref(`users/${myId}/blocked/${otherUid}`).on('value', (bSnap) => {
-                if(bSnap.exists()) { inputArea.style.display = 'none'; blockedBanner.style.display = 'block'; youBlockedBanner.style.display = 'none'; }
+            
+            // ИСПРАВЛЕНО: Теперь мы сохраняем ссылки на слушателей, чтобы отключать их при выходе
+            currentBlockRef1 = database.ref(`users/${myId}/blocked/${otherUid}`);
+            currentBlockRef1.on('value', (bSnap) => {
+                if(bSnap.exists()) { inputArea.style.display = 'none'; blockedBanner.style.display = 'block'; youBlockedBanner.style.display = 'none'; } 
                 else {
-                    database.ref(`users/${otherUid}/blocked/${myId}`).on('value', (bSnap2) => {
-                        if(bSnap2.exists()) { inputArea.style.display = 'none'; blockedBanner.style.display = 'none'; youBlockedBanner.style.display = 'block'; }
+                    currentBlockRef2 = database.ref(`users/${otherUid}/blocked/${myId}`);
+                    currentBlockRef2.on('value', (bSnap2) => {
+                        if(bSnap2.exists()) { inputArea.style.display = 'none'; blockedBanner.style.display = 'none'; youBlockedBanner.style.display = 'block'; } 
                         else { inputArea.style.display = 'flex'; blockedBanner.style.display = 'none'; youBlockedBanner.style.display = 'none'; }
                     });
                 }
             });
         }
-    } else {
-        if(inputArea) inputArea.style.display = 'flex';
+    } else { 
+        if(inputArea) inputArea.style.display = 'flex'; 
         if(blockedBanner) blockedBanner.style.display = 'none';
         if(youBlockedBanner) youBlockedBanner.style.display = 'none';
     }
@@ -906,24 +923,38 @@ function closeChat() {
 
     currentRoomRef = database.ref('chats/' + roomId);
     currentRoomRef.on('child_added', function(snapshot) {
-        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg;
+        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg; 
         renderMessage(msgId, msg, roomId, myId, messagesContainer, viewedMessages);
         if(messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        // ИСПРАВЛЕНО: Звук уведомления и проверка на mute
+        if (msg.userId !== myId) {
+            database.ref(`userChats/${myId}/${roomId}/muted`).once('value').then(mSnap => {
+                if (!mSnap.val()) { // Если не в муте
+                    const audio = document.getElementById('notifySound');
+                    if (audio) { audio.currentTime = 0; audio.play().catch(e => console.log('Звук заблокирован')); }
+                }
+            });
+        }
+
         if (msg.userId !== myId && !msg.read) {
             database.ref(`chats/${roomId}/${msgId}`).update({ read: true });
         }
         if (msg.userId !== myId && roomId !== 'global') { database.ref(`userChats/${myId}/${roomId}`).update({ unreadCount: 0 }); }
     });
+    
     currentRoomRef.on('child_removed', function(snapshot) { const el = document.getElementById('msg_wrap_' + snapshot.key); if (el) el.remove(); });
     currentRoomRef.on('child_changed', function(snapshot) {
-        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg;
-        const reactionsDiv = document.getElementById('reactions_' + msgId); if (reactionsDiv) { reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}); }
+        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg; 
+        const reactionsDiv = document.getElementById('reactions_' + msgId); if (reactionsDiv) { reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}, msgId, roomId); }
         const viewsSpan = document.getElementById('views_' + msgId); if(viewsSpan) viewsSpan.textContent = msg.views || 0;
+        
         const tickSpan = document.getElementById('tick_' + msgId);
         if(tickSpan) {
             if(msg.read) { tickSpan.className = 'msg-tick read'; tickSpan.textContent = '✓✓'; }
             else { tickSpan.className = 'msg-tick'; tickSpan.textContent = '✓'; }
         }
+
         const textDiv = document.getElementById('text_' + msgId);
         if(textDiv && msg.edited && !msg.image && !msg.audio) {
             let parsedText = msg.text.replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention" onclick="event.stopPropagation(); openProfileByUsername(\'$1\')">@$1</span>');
@@ -935,9 +966,11 @@ function closeChat() {
     const wrapper = document.createElement('div'); wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received'); wrapper.id = 'msg_wrap_' + msgId;
     const newMessage = document.createElement('div'); newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
     newMessage.onclick = function(e) { showMessageActions(e, msgId, msg.userId === myId); };
+    
     let replyHTML = '';
     if (msg.replyTo) replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
     const timeString = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
     if (msg.userId !== myId && msg.username) {
         database.ref('users/' + msg.userId).once('value').then((uSnap) => {
             const uData = uSnap.val(); let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
@@ -949,11 +982,13 @@ function closeChat() {
             wrapper.insertBefore(senderInfo, newMessage);
         });
     }
+    
     const editedMark = msg.edited ? `<span style="font-size:10px; color:#aaa;">(изм.)</span>` : '';
     let tickHTML = '';
     if (msg.userId === myId) {
         tickHTML = msg.read ? `<span id="tick_${msgId}" class="msg-tick read">✓✓</span>` : `<span id="tick_${msgId}" class="msg-tick">✓</span>`;
     }
+
     if (msg.image) {
         newMessage.innerHTML = replyHTML + `<img src="${msg.image}" class="message-image" alt="Фото" onclick="event.stopPropagation(); openLightbox('${msg.image}')"><div style="text-align:right; margin-top:2px;"><span class="msg-time">${timeString}</span>${tickHTML}</div>`;
     } else if (msg.audio) {
@@ -962,20 +997,28 @@ function closeChat() {
         let parsedText = msg.text.replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention" onclick="event.stopPropagation(); openProfileByUsername(\'$1\')">@$1</span>');
         newMessage.innerHTML = replyHTML + `<div id="text_${msgId}">${parsedText} ${editedMark} <span class="msg-time">${timeString}</span>${tickHTML}</div>`;
     }
+    
     wrapper.appendChild(newMessage);
+    
     if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
         viewedMessages.push(msgId); localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages));
         database.ref(`chats/${roomId}/${msgId}/views`).transaction((v) => (v || 0) + 1);
     }
     let viewsHTML = ''; if (roomId.startsWith('ch_')) viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`;
-    const reactionsDiv = document.createElement('div'); reactionsDiv.id = 'reactions_' + msgId; reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {});
+    const reactionsDiv = document.createElement('div'); reactionsDiv.id = 'reactions_' + msgId; 
+    
+    // ИСПРАВЛЕНО: Передаем msgId и roomId, чтобы реакции можно было нажимать
+    reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}, msgId, roomId);
     wrapper.appendChild(reactionsDiv); if (viewsHTML) wrapper.insertAdjacentHTML('beforeend', viewsHTML); container.appendChild(wrapper);
 }
 
-function getReactionsHTML(reactions) {
+// ИСПРАВЛЕНО: реакции теперь кликабельные
+function getReactionsHTML(reactions, msgId, roomId) {
     let html = '';
-    for (const [emoji, users] of Object.entries(reactions)) {
-        if (users.length > 0) html += `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`;
+    for (const [emoji, users] of Object.entries(reactions)) { 
+        if (users.length > 0) {
+            html += `<span onclick="event.stopPropagation(); toggleReaction(event, '${roomId}', '${msgId}', '${emoji}')" style="cursor:pointer; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`; 
+        }
     }
     return html;
 }
@@ -993,6 +1036,7 @@ function openProfileByUsername(username) {
             const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
             const msgData = { text: text, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false };
             if (activeReplyContext) msgData.replyTo = activeReplyContext;
+            
             if (currentRoomId !== 'global' && !currentRoomId.startsWith('ch_')) {
                 const otherUid = currentRoomId.split('_').find(id => id !== myId);
                 database.ref(`users/${otherUid}/blocked/${myId}`).once('value').then(bSnap => {
@@ -1000,10 +1044,10 @@ function openProfileByUsername(username) {
                     pushMessage();
                 });
             } else { pushMessage(); }
+            
             function pushMessage() {
                 database.ref('chats/' + currentRoomId).push(msgData).then(() => {
-                    input.value = ""; cancelReply(); input.focus();
-                    database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
+                    input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
                     document.getElementById('emojiPanel').style.display = 'none';
                     if (currentRoomId !== 'global') {
                         database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
@@ -1022,15 +1066,19 @@ function openProfileByUsername(username) {
     }
 }
 
-document.getElementById('msgInput').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
+document.getElementById('msgInput').addEventListener('keypress', function (e) { 
+    if (e.key === 'Enter') { 
         const popup = document.getElementById('mentionPopup');
         if(popup.style.display === 'flex') {
             const firstItem = popup.querySelector('.mention-item');
-            if(firstItem) { firstItem.click(); e.preventDefault(); return; }
+            if(firstItem) {
+                firstItem.click();
+                e.preventDefault();
+                return;
+            }
         }
-        sendMessage();
-    }
+        sendMessage(); 
+    } 
 });
 
 applySettings();
