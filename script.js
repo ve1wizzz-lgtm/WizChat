@@ -412,4 +412,25 @@ auth.onAuthStateChanged((user) => {
     if (user) { localStorage.setItem('myUserId', user.uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile(); } 
     else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
 });
-if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }
+if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); } function registerUser() {
+    const rawUsername = document.getElementById('loginUsername').value;
+    const username = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const password = document.getElementById('loginPassword').value;
+    if (!username || username.length < 3) return alert("Юзернейм минимум 3 символа (только англ. буквы, цифры и _)"); 
+    if (!password || password.length < 6) return alert("Пароль минимум 6 символов");
+    const email = username + "@wizchat.com";
+    auth.createUserWithEmailAndPassword(email, password).then((userCredential) => {
+        const uid = userCredential.user.uid;
+        database.ref('users/' + uid).set({ username: username, displayName: username, bio: "", avatarUrl: null, bannerUrl: null, privateAccount: false, forbidFirstMessage: false }).then(() => {
+            database.ref('usernames/' + username).set({ type: 'user', id: uid }).then(() => { alert("Регистрация успешна! Теперь войди."); auth.signOut(); });
+        }).catch(err => alert("Ошибка базы данных: " + err.message));
+    }).catch(err => alert("Ошибка Firebase Auth: " + err.message));
+}
+function loginUser() {
+    const username = document.getElementById('loginUsername').value.trim().toLowerCase(); const password = document.getElementById('loginPassword').value;
+    if (!username || !password) return alert("Заполни все поля"); const email = username + "@wizchat.com";
+    auth.signInWithEmailAndPassword(email, password).then((userCredential) => {
+        const uid = userCredential.user.uid; localStorage.setItem('myUserId', uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(uid); loadMyChatsList(); loadProfile();
+    }).catch(err => alert("Неверный юзернейм или пароль: " + err.message));
+}
+function logoutUser() { if (!confirm("Выйти из аккаунта?")) return; auth.signOut().then(() => { localStorage.removeItem('myUserId'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('authScreen').style.display = 'flex'; }); }
