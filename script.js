@@ -135,9 +135,7 @@ function joinChannelByCode() {
             });
         } else { alert("Неверный код."); }
     });
-}
-
-function switchTab(tabId, element) {
+}function switchTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active'); element.classList.add('active');
@@ -177,10 +175,19 @@ function logoutUser() { auth.signOut(); location.reload(); }
 
 auth.onAuthStateChanged((user) => {
     if (user) {
-        document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex';
-        localStorage.setItem('myUserId', user.uid); loadChat('global', 'Общий чат'); loadMyChatsList(); loadProfile(); 
+        document.getElementById('authScreen').style.display = 'none'; 
+        document.getElementById('mainApp').style.display = 'flex';
+        
+        // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Принудительно показываем нижнюю панель
+        document.getElementById('bottomNav').style.display = 'flex';
+        
+        localStorage.setItem('myUserId', user.uid); 
+        loadChat('global', 'Общий чат'); 
+        loadMyChatsList(); 
+        loadProfile(); 
     } else {
-        document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authScreen').style.display = 'flex'; 
+        document.getElementById('mainApp').style.display = 'none';
         localStorage.removeItem('myUserId');
     }
 });
@@ -294,7 +301,8 @@ function openChat(roomId, title, element) {
 
 function closeChat() {
     document.getElementById('chatArea').classList.remove('active');
-    currentRoomId = 'global'; loadMyChatsList(); document.getElementById('bottomNav').style.display = 'flex';
+    currentRoomId = 'global'; loadMyChatsList(); 
+    document.getElementById('bottomNav').style.display = 'flex';
 }
 
 function loadChat(roomId, title) {
@@ -435,7 +443,6 @@ document.getElementById('msgInput').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') sendMessage();
 });
 
-// --- ИНТЕГРАЦИЯ С TELEGRAM MINI APP ---
 const tg = window.Telegram.WebApp;
 if(tg) { tg.expand(); }
 
