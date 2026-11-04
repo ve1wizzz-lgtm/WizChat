@@ -14,14 +14,15 @@ const auth = firebase.auth();
 
 let currentRoomId = 'global'; 
 let currentRoomRef = null; 
+let currentTypingRef = null; // ФИКС: Отдельная переменная для слушателя печати
 let currentProfileChannelId = null; 
 let activeReplyContext = null;
 let messagesCache = {}; 
 let typingTimeout;
 let tempAvatarBase64 = null;
-let previousUnread = {}; // Для отслеживания новых сообщений
+let previousUnread = {}; 
 
-// Загрузка фото
+// Загрузка фото с телефона
 document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
     if(uploadInput) {
@@ -49,6 +50,23 @@ document.addEventListener("DOMContentLoaded", () => {
             reader.readAsDataURL(file);
         });
     }
+});
+
+// ФИКС: Слушатель ввода текста теперь глобальный (не дублируется)
+document.getElementById('msgInput').addEventListener('input', () => {
+    const myId = localStorage.getItem('myUserId');
+    if (!myId || !currentRoomId) return;
+    
+    database.ref(`users/${myId}`).once('value').then(uSnap => {
+        const myData = uSnap.val();
+        const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; 
+        
+        database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: true, name: myName });
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false });
+        }, 2000); 
+    });
 });
 
 function setReply(msgId) {
@@ -95,9 +113,7 @@ function leaveChannel() {
         database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
     });
-}
-
-function openProfileModal() {
+}function openProfileModal() {
     if (currentRoomId === 'global') return;
     const modal = document.getElementById('profileModal');
     const av = document.getElementById('profAvatar');
@@ -136,7 +152,9 @@ function openProfileModal() {
             }
         });
     }
-}function createChannel(btn) {
+}
+
+function createChannel(btn) {
     const name = document.getElementById('chName').value.trim();
     const username = document.getElementById('chUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     const isPrivate = document.getElementById('chPrivate').checked;
@@ -250,9 +268,7 @@ function loadProfile() {
             }
         }
     });
-}
-
-function saveProfile() {
+}function saveProfile() {
     const myId = localStorage.getItem('myUserId');
     const newName = document.getElementById('newDisplayName').value.trim();
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
@@ -260,19 +276,16 @@ function saveProfile() {
     
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
     
-    // 1. Обновляем свой профиль
     database.ref('users/' + myId).update({ 
         displayName: newName, 
         avatarUrl: finalAvatar 
     }).then(() => {
-        // 2. Обновляем наше имя во всех чатах, где мы есть
         database.ref(`userChats/${myId}`).once('value').then(snap => {
             snap.forEach(child => {
                 const roomId = child.key;
                 if(!roomId.startsWith('ch_')) {
                     const otherUid = roomId.split('_').find(id => id !== myId);
                     if(otherUid) {
-                        // Обновляем имя у собеседника
                         database.ref(`userChats/${otherUid}/${roomId}`).update({
                             username: newName,
                             avatarUrl: finalAvatar
@@ -282,7 +295,6 @@ function saveProfile() {
             });
         });
         
-        // 3. Обновляем имена собеседников в моем списке чатов (на случай, если они меняли ник, пока я офлайн)
         database.ref(`userChats/${myId}`).once('value').then(snap => {
              snap.forEach(child => {
                 const roomId = child.key;
@@ -304,7 +316,9 @@ function saveProfile() {
         alert("Профиль обновлен!");
         tempAvatarBase64 = null; 
     });
-}function liveSearch() {
+}
+
+function liveSearch() {
     const searchName = document.getElementById('searchInput').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('searchResults');
     const myId = localStorage.getItem('myUserId');
@@ -352,9 +366,7 @@ function startPrivateChat(otherUid, otherDisplayName) {
         const myData = snap.val();
         const myUsername = myData.displayName || myData.username;
         
-        // Добавляем чат в свой список
         database.ref(`userChats/${myId}/${roomId}`).update({ username: otherDisplayName, lastMessage: "Чат создан", unreadCount: 0 });
-        // Добавляем чат в список собеседника (под нашим ником)
         database.ref(`userChats/${otherUid}/${roomId}`).update({ username: myUsername, lastMessage: "Чат создан", unreadCount: 0 });
         
         openChat(roomId, otherDisplayName, null);
@@ -377,7 +389,6 @@ function loadMyChatsList() {
             snapshot.forEach((child) => {
                 const roomId = child.key; const data = child.val();
                 
-                // ПРОВЕРКА НА НОВОЕ СООБЩЕНИЕ (Звук)
                 if (data.unreadCount > 0 && currentRoomId !== roomId) {
                     if (previousUnread[roomId] !== data.unreadCount) {
                         const audio = document.getElementById('notifySound');
@@ -400,7 +411,6 @@ function loadMyChatsList() {
                 const icon = roomId.startsWith('ch_') ? '📢' : '@';
                 const isChannel = roomId.startsWith('ch_');
 
-                // Аватарка
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
                 let avText = data.avatarUrl ? '' : (isChannel ? '#' : data.username[0].toUpperCase());
                 
@@ -434,7 +444,9 @@ function openChat(roomId, title, element) {
 
 function closeChat() {
     document.getElementById('chatArea').classList.remove('active');
-    currentRoomId = 'global'; loadMyChatsList(); 
+    currentRoomId = 'global'; 
+    if (currentTypingRef) { currentTypingRef.off(); } // Отключаем прослушивание печати при выходе
+    loadMyChatsList(); 
     document.getElementById('bottomNav').style.display = 'flex';
 }
 
@@ -443,12 +455,17 @@ function loadChat(roomId, title) {
     const messagesContainer = document.getElementById('messages');
     messagesContainer.innerHTML = ''; 
     messagesCache = {}; 
+    
+    // Отключаем старые слушатели
     if (currentRoomRef) { currentRoomRef.off(); }
+    if (currentTypingRef) { currentTypingRef.off(); }
     
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
 
-    database.ref('typing/' + roomId).on('value', (snap) => {
+    // ФИКС: Слушатель печати теперь корректно отключается при смене чата
+    currentTypingRef = database.ref('typing/' + roomId);
+    currentTypingRef.on('value', (snap) => {
         const typingData = snap.val();
         let someoneTyping = false;
         let typingName = "";
@@ -496,20 +513,9 @@ function loadChat(roomId, title) {
         const viewsSpan = document.getElementById('views_' + msgId);
         if(viewsSpan) viewsSpan.textContent = msg.views || 0;
     });
+}
 
-    const msgInput = document.getElementById('msgInput');
-    msgInput.addEventListener('input', () => {
-        database.ref(`users/${myId}`).once('value').then(uSnap => {
-            const myData = uSnap.val();
-            const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; 
-            database.ref(`typing/${roomId}/${myId}`).set({ isTyping: true, name: myName });
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                database.ref(`typing/${roomId}/${myId}`).set({ isTyping: false });
-            }, 2000); 
-        });
-    });
-}function renderMessage(msgId, msg, roomId, myId, container) {
+function renderMessage(msgId, msg, roomId, myId, container) {
     const wrapper = document.createElement('div');
     wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received');
     wrapper.id = 'msg_wrap_' + msgId;
@@ -609,8 +615,8 @@ function sendMessage() {
                             database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ 
                                 lastMessage: text, 
                                 unreadCount: currentUnread + 1,
-                                username: myName, // Обновляем наше имя в его списке
-                                avatarUrl: myAvatar // Обновляем нашу аватарку в его списке
+                                username: myName,
+                                avatarUrl: myAvatar
                             });
                         });
                     }
