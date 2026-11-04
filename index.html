@@ -15,6 +15,12 @@
 <body>
     <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
+    <!-- Лайтбокс для фото -->
+    <div id="imageLightbox" class="lightbox" onclick="closeLightbox()">
+        <span class="close-lightbox">&times;</span>
+        <img id="lightboxImg" src="">
+    </div>
+
     <div id="menuOverlay" class="menu-overlay" onclick="closeContextMenu()"></div>
 
     <div id="msgContextMenu" class="msg-context-menu">
@@ -148,10 +154,17 @@
                 Пользователь заблокировал вас. Вы не можете отправлять сообщения.
             </div>
 
+            <!-- Панель эмодзи -->
+            <div id="emojiPanel" class="emoji-panel" style="display: none;"></div>
+
+            <!-- Всплывающее окно упоминаний -->
+            <div id="mentionPopup" class="mention-popup" style="display: none;"></div>
+
             <div class="input-area" id="messageInputArea">
                 <input type="file" id="chatImageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
                 <button onclick="document.getElementById('chatImageUpload').click()" style="background: transparent; color: var(--text-muted); width: 40px; height: 45px; font-size: 22px; padding: 0; margin-right: -5px;">📎</button>
-                <input type="text" id="msgInput" placeholder="Сообщение...">
+                <button onclick="toggleEmojiPanel()" style="background: transparent; color: var(--text-muted); width: 40px; height: 45px; font-size: 22px; padding: 0;">😊</button>
+                <input type="text" id="msgInput" placeholder="Сообщение..." oninput="handleMentionInput(event)">
                 <button onclick="sendMessage()">➤</button>
             </div>
         </div>
