@@ -15,12 +15,20 @@
 <body>
     <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-    <!-- Невидимый фон для закрытия меню -->
     <div id="menuOverlay" class="menu-overlay" style="display: none;" onclick="closeContextMenu()"></div>
 
     <div id="msgContextMenu" class="msg-context-menu" style="display: none;">
         <div class="context-reactions" id="contextReactions"></div>
         <div class="context-actions" id="contextActions"></div>
+    </div>
+
+    <!-- Окно для всех реакций -->
+    <div class="modal-overlay" id="fullReactionsModal" style="display: none; z-index: 1000;">
+        <div class="modal-content" style="padding: 15px;">
+            <h3 style="margin-bottom: 15px;">Выберите реакцию</h3>
+            <div class="full-reactions-grid" id="fullReactionsGrid"></div>
+            <button onclick="closeFullReactions()" style="margin-top: 15px; background: var(--bg-input);">Закрыть</button>
+        </div>
     </div>
 
     <div class="auth-screen" id="authScreen">
