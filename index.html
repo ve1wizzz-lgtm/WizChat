@@ -15,14 +15,14 @@
 <body>
     <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-    <div id="menuOverlay" class="menu-overlay" style="display: none;" onclick="closeContextMenu()"></div>
+    <div id="menuOverlay" class="menu-overlay" onclick="closeContextMenu()"></div>
 
-    <div id="msgContextMenu" class="msg-context-menu" style="display: none;">
+    <div id="msgContextMenu" class="msg-context-menu">
         <div class="context-reactions" id="contextReactions"></div>
         <div class="context-actions" id="contextActions"></div>
     </div>
 
-    <div class="modal-overlay" id="fullReactionsModal" style="display: none; z-index: 1000;">
+    <div class="modal-overlay" id="fullReactionsModal">
         <div class="modal-content" style="padding: 15px;">
             <h3 style="margin-bottom: 15px;">Выберите реакцию</h3>
             <div class="full-reactions-grid" id="fullReactionsGrid"></div>
@@ -109,7 +109,7 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="profileModal" style="display: none;">
+        <div class="modal-overlay" id="profileModal">
             <div class="modal-content" style="text-align: center; padding: 30px 20px;">
                 <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; width: 100px; height: 100px; font-size: 40px;">#</div>
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
@@ -117,10 +117,10 @@
                 <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic; max-height: 80px; overflow-y: auto;"></p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
                 
-                <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
-                <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
-                <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
-                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
+                <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
+                <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
+                <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
+                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
                 <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
@@ -148,7 +148,6 @@
                 Пользователь заблокировал вас. Вы не можете отправлять сообщения.
             </div>
 
-            <!-- Добавили скрытый инпут и кнопку для картинок -->
             <div class="input-area" id="messageInputArea">
                 <input type="file" id="chatImageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
                 <button onclick="document.getElementById('chatImageUpload').click()" style="background: transparent; color: var(--text-muted); width: 40px; height: 45px; font-size: 22px; padding: 0; margin-right: -5px;">📎</button>
@@ -163,7 +162,7 @@
             <div class="nav-item" onclick="switchTab('profile', this)">👤<br><span>Профиль</span></div>
         </div>
 
-        <div class="modal-overlay" id="createModal" style="display: none;">
+        <div class="modal-overlay" id="createModal">
             <div class="modal-content">
                 <h3>Создать или войти</h3>
                 <input type="text" id="chName" placeholder="Название">
