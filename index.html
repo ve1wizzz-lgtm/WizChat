@@ -15,7 +15,6 @@
 <body>
     <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-    <!-- Лайтбокс для фото -->
     <div id="imageLightbox" class="lightbox" onclick="closeLightbox()">
         <span class="close-lightbox">&times;</span>
         <img id="lightboxImg" src="">
@@ -123,11 +122,23 @@
                 <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic; max-height: 80px; overflow-y: auto;"></p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
                 
+                <!-- Переключатель уведомлений -->
+                <div id="muteSettingContainer" style="display:none; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 10px; margin-bottom: 15px;">
+                    <span style="color: var(--text-main); font-weight: bold;">Уведомления</span>
+                    <label class="switch">
+                        <input type="checkbox" id="muteToggle" onchange="toggleMuteChat()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
                 <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
                 <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
-                <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
+                
+                <!-- Удаление чата -->
+                <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Удалить чат</button>
+                
                 <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
-                <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
+                <button onclick="closeProfileModal()" style="background: var(--bg-panel); border: 1px solid var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
 
@@ -135,7 +146,13 @@
             <div class="chat-header">
                 <span class="back-btn" onclick="closeChat()">←</span> 
                 <span id="chatTitle" onclick="openProfileModal()" style="cursor: pointer; flex:1;">Общий чат</span>
+                <span class="search-chat-btn" onclick="toggleChatSearch()" style="cursor:pointer; font-size:20px;">🔍</span>
             </div>
+
+            <div class="chat-search-container" id="chatSearchContainer">
+                <input type="text" id="chatSearchInput" placeholder="Поиск в чате..." oninput="filterChatMessages(this.value)">
+            </div>
+
             <div class="messages" id="messages"></div>
             <div class="reply-preview" id="replyPreview" style="display: none;">
                 <div class="reply-line"></div>
@@ -154,10 +171,7 @@
                 Пользователь заблокировал вас. Вы не можете отправлять сообщения.
             </div>
 
-            <!-- Панель эмодзи -->
             <div id="emojiPanel" class="emoji-panel" style="display: none;"></div>
-
-            <!-- Всплывающее окно упоминаний -->
             <div id="mentionPopup" class="mention-popup" style="display: none;"></div>
 
             <div class="input-area" id="messageInputArea">
