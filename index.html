@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WizChat</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="auth-screen" id="authScreen">
+        <h1>Вход в WizChat</h1>
+        <input type="text" id="loginUsername" placeholder="Юзернейм (на англ.)">
+        <input type="password" id="loginPassword" placeholder="Пароль (мин. 6 символов)">
+        <button onclick="registerUser()">Зарегистрироваться</button>
+        <button onclick="loginUser()">Войти</button>
+    </div>
+
+    <div class="app" id="mainApp" style="display: none;">
+        
+        <div class="tab-content active" id="tab-chats">
+            <div class="sidebar">
+                <div class="search-wrapper">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Поиск..." oninput="liveSearch()">
+                        <button>🔍</button>
+                    </div>
+                    <div class="search-results" id="searchResults" style="display: none;"></div>
+                </div>
+                
+                <div class="header" style="display: flex; justify-content: space-between; align-items: center; padding-right: 15px;">
+                    Мои чаты
+                    <button onclick="openCreateModal()" style="background: #2b5278; border: none; color: white; padding: 5px 10px; border-radius: 10px; cursor: pointer;">➕</button>
+                </div>
+                
+                <div class="chat-list" id="chatList">
+                    <div class="chat-item active" onclick="openChat('global', 'Общий чат', this)">💬 Общий чат</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="createModal" style="display: none;">
+            <div class="modal-content">
+                <h3>Создать или войти</h3>
+                <input type="text" id="chName" placeholder="Название">
+                <input type="text" id="chUsername" placeholder="Юзернейм (на англ.)">
+                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                    <input type="checkbox" id="chPrivate" style="width:20px; margin:0;"> Приватный
+                </label>
+                <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать канал</button>
+                <hr style="border-color: #242f3d; margin: 15px 0;">
+                <input type="text" id="joinCode" placeholder="Секретный код">
+                <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
+                <button onclick="closeCreateModal()" style="background: #c0392b; margin-top: 10px;">Отмена</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="profileModal" style="display: none;">
+            <div class="modal-content" style="text-align: center;">
+                <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; background: #e67e22;">#</div>
+                <h3 id="profName" style="font-size: 24px;">Загрузка...</h3>
+                <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px;">@...</p>
+                <p id="profSubs" style="color: var(--text-muted); margin-bottom: 20px;">0 подписчиков</p>
+                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px;">Отписаться</button>
+                <button onclick="closeProfileModal()" style="background: #2b5278;">Закрыть</button>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-settings">
+            <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
+            <div class="settings-group">
+                <h3>Тема</h3>
+                <div class="theme-buttons">
+                    <button onclick="changeTheme('dark')">Темная</button>
+                    <button onclick="changeTheme('light')">Светлая</button>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Размер текста</h3>
+                <div class="theme-buttons">
+                    <button onclick="changeFontSize('small')">Маленький</button>
+                    <button onclick="changeFontSize('medium')">Средний</button>
+                    <button onclick="changeFontSize('large')">Большой</button>
+                </div>
+            </div>
+            <div class="settings-group" style="margin-top: 30px;">
+                <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-profile">
+            <div class="profile-header">
+                <div class="avatar-large" id="profileAvatar">V</div>
+                <div class="profile-name" id="profileDisplayName">Загрузка...</div>
+                <div class="profile-username" id="profileUsername">@...</div>
+            </div>
+            <div class="profile-settings">
+                <label>Имя</label>
+                <input type="text" id="newDisplayName" placeholder="Имя">
+                <label>Аватарка (Эмодзи)</label>
+                <input type="text" id="newAvatarText" maxlength="2" placeholder="🚀">
+                <button onclick="saveProfile()">Сохранить</button>
+            </div>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="chat-header">
+                <span class="back-btn" onclick="closeChat()">←</span> 
+                <span id="chatTitle" onclick="openProfileModal()" style="cursor: pointer; flex:1;">Общий чат</span>
+            </div>
+            <div class="messages" id="messages"></div>
+            
+            <!-- Блок ответа -->
+            <div class="reply-preview" id="replyPreview" style="display: none;">
+                <div class="reply-line"></div>
+                <div class="reply-content">
+                    <span id="replyPreviewName">Имя</span>
+                    <span id="replyPreviewText">Текст...</span>
+                </div>
+                <button onclick="cancelReply()" class="cancel-reply-btn">✖</button>
+            </div>
+
+            <div class="input-area" id="messageInputArea">
+                <input type="text" id="msgInput" placeholder="Сообщение...">
+                <button onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+
+        <div class="bottom-nav" id="bottomNav">
+            <div class="nav-item active" onclick="switchTab('chats', this)">💬<br><span>Чаты</span></div>
+            <div class="nav-item" onclick="switchTab('settings', this)">⚙️<br><span>Настройки</span></div>
+            <div class="nav-item" onclick="switchTab('profile', this)">👤<br><span>Профиль</span></div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
