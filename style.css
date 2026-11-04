@@ -50,7 +50,7 @@ html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;
 .chat-search-container { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; background: var(--bg-panel); padding: 0 10px; }
 .chat-search-container.open { max-height: 60px; padding: 10px; border-bottom: 1px solid var(--bg-input); }
 .chat-search-container input { width: 100%; padding: 10px 15px; border-radius: 20px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; }
-.messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; position: relative; background-image: url('https://i.pinimg.com/736x/be/94/6d/be946d65fb45852b48bed23b5c821d79.jpg'); background-size: cover; background-position: center; background-attachment: fixed; }
+.messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; position: relative; }
 .message-wrapper { display: flex; flex-direction: column; max-width: 85%; margin-bottom: 5px; }
 .message-wrapper.sent { align-self: flex-end; align-items: flex-end; }
 .message-wrapper.received { align-self: flex-start; align-items: flex-start; }
