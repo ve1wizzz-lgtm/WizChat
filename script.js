@@ -92,23 +92,38 @@ function showMessageActions(event, msgId, isMine) {
     const rect = event.target.getBoundingClientRect();
     if(menu) {
         menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
-        menu.style.top = (rect.top - 100) + 'px'; 
+        menu.style.top = Math.max(10, rect.top - 100) + 'px'; 
     }
 
+    // МНОГО РЕАКЦИЙ
     const reactionsDiv = document.getElementById('contextReactions');
     if(reactionsDiv) {
-        reactionsDiv.innerHTML = `
-            <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '👍'); closeContextMenu();">👍</button>
-            <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '🔥'); closeContextMenu();">🔥</button>
-            <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '❤️'); closeContextMenu();">❤️</button>
-        `;
+        const emojis = ['🤝','😎','🫩','💀','🙏','😭','🤔','😞','😯','👎','👅','❤️‍🔥','👍','🔥','❤️'];
+        let html = '';
+        emojis.forEach(e => {
+            html += `<button onclick="toggleReaction('${currentRoomId}', '${msgId}', '${e}'); closeContextMenu();">${e}</button>`;
+        });
+        // Делаем прокрутку для реакций, чтобы не растягивалось на весь экран
+        reactionsDiv.style.overflowX = 'auto';
+        reactionsDiv.style.flexWrap = 'nowrap';
+        reactionsDiv.style.justifyContent = 'flex-start';
+        reactionsDiv.style.paddingBottom = '15px';
+        reactionsDiv.innerHTML = html;
     }
+
     const actionsDiv = document.getElementById('contextActions');
     if(actionsDiv) {
         actionsDiv.innerHTML = `<button onclick="setReply('${msgId}'); closeContextMenu();">↩️ Ответить</button>`;
+        
+        const isChannel = currentRoomId.startsWith('ch_');
+        
+        // УДАЛЕНИЕ: Своё - везде, чужое - только в личке
+        if (isMine || !isChannel) {
+            actionsDiv.innerHTML += `<button class="red-btn" onclick="deleteMessage('${currentRoomId}', '${msgId}'); closeContextMenu();">🗑️ Удалить</button>`;
+        }
+        
         if (isMine) {
             actionsDiv.innerHTML += `<button onclick="editMessage('${msgId}'); closeContextMenu();">✏️ Изменить</button>`;
-            actionsDiv.innerHTML += `<button class="red-btn" onclick="deleteMessage('${currentRoomId}', '${msgId}'); closeContextMenu();">🗑️ Удалить</button>`;
         }
     }
 }
@@ -120,8 +135,6 @@ function closeContextMenu() {
     if(menu) menu.style.display = 'none';
     currentMenuMsgId = null;
 }
-
-// Убираем глобальный слушатель document click, так как теперь есть overlay
 
 function editMessage(msgId) {
     const msg = messagesCache[msgId];
@@ -165,20 +178,45 @@ function cancelReply() {
     activeReplyContext = null;
     const rp = document.getElementById('replyPreview');
     if(rp) rp.style.display = 'none';
-}
-
+}// ЛОГИКА ОДНОЙ РЕАКЦИИ НА ЧЕЛОВЕКА
 function toggleReaction(roomId, msgId, emoji) {
     const myId = localStorage.getItem('myUserId');
-    const ref = database.ref(`chats/${roomId}/${msgId}/reactions/${emoji}`);
-    ref.once('value').then((snap) => {
-        let users = snap.val() || [];
-        if(users.includes(myId)) { users = users.filter(id => id !== myId); } 
-        else { users.push(myId); }
-        ref.set(users);
+    const msgRef = database.ref(`chats/${roomId}/${msgId}`);
+    
+    msgRef.once('value').then(snap => {
+        const msg = snap.val();
+        if(!msg) return;
+        let reactions = msg.reactions || {};
+        let hasReactedWithThis = false;
+        
+        // Проверяем, ставил ли уже эту реакцию
+        if (reactions[emoji] && reactions[emoji].includes(myId)) {
+            hasReactedWithThis = true;
+        }
+
+        // Убираем юзера ИЗ ВСЕХ реакций на этом сообщении
+        for (let key in reactions) {
+            if (reactions[key].includes(myId)) {
+                reactions[key] = reactions[key].filter(id => id !== myId);
+                if (reactions[key].length === 0) delete reactions[key];
+            }
+        }
+
+        // Если он не ставил именно эту, добавляем её
+        if (!hasReactedWithThis) {
+            if (!reactions[emoji]) reactions[emoji] = [];
+            reactions[emoji].push(myId);
+        }
+
+        msgRef.child('reactions').set(reactions);
     });
 }
 
-function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение для всех?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }
+function deleteMessage(roomId, msgId) { 
+    if(confirm("Удалить сообщение для всех?")) {
+        database.ref(`chats/${roomId}/${msgId}`).remove(); 
+    }
+}
 
 function deleteChatFromProfile() {
     if(currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
@@ -194,7 +232,9 @@ function deleteChatFromProfile() {
 
 function openCreateModal() { const m = document.getElementById('createModal'); if(m) m.style.display = 'flex'; }
 function closeCreateModal() { const m = document.getElementById('createModal'); if(m) m.style.display = 'none'; }
-function closeProfileModal() { const m = document.getElementById('profileModal'); if(m) m.style.display = 'none'; }function leaveChannel() {
+function closeProfileModal() { const m = document.getElementById('profileModal'); if(m) m.style.display = 'none'; }
+
+function leaveChannel() {
     const myId = localStorage.getItem('myUserId');
     if(!currentProfileChannelId) return;
     if(!confirm("Вы уверены, что хотите отписаться?")) return;
@@ -308,9 +348,7 @@ function applySettings() {
 }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
-applySettings();
-
-function registerUser() {
+applySettings();function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     if(!username || password.length < 6) { return alert("Пароль мин. 6 символов!"); }
@@ -366,7 +404,9 @@ function loadProfile() {
             }
         }
     });
-}function saveProfile() {
+}
+
+function saveProfile() {
     const myId = localStorage.getItem('myUserId');
     const newName = document.getElementById('newDisplayName').value.trim();
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
@@ -438,9 +478,7 @@ function startPrivateChat(otherUid, otherDisplayName) {
         openChat(roomId, otherDisplayName, null); document.getElementById('searchInput').value = ''; 
         const sR = document.getElementById('searchResults'); if(sR) sR.style.display = 'none';
     });
-}
-
-function loadMyChatsList() {
+}function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
     if(!chatList) return;
@@ -575,7 +613,6 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
     const wrapper = document.createElement('div'); wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received'); wrapper.id = 'msg_wrap_' + msgId;
     const newMessage = document.createElement('div'); newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
     
-    // Вот здесь мы привязываем клик к тексту
     newMessage.onclick = function(e) { showMessageActions(e, msgId, msg.userId === myId); };
     
     let replyHTML = '';
@@ -619,14 +656,27 @@ function sendMessage() {
             if (activeReplyContext) msgData.replyTo = activeReplyContext;
             database.ref('chats/' + currentRoomId).push(msgData).then(() => {
                 input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
+                
                 if (currentRoomId !== 'global') {
+                    // Обновляем превью у себя
                     database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
+                    
+                    // Обновляем у собеседника (создаем чат, если он его удалил)
                     if (!currentRoomId.startsWith('ch_')) {
                         const otherUid = currentRoomId.split('_').find(id => id !== myId);
-                        if(otherUid) database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then((s) => {
-                            const currentUnread = s.val() && s.val().unreadCount ? s.val().unreadCount : 1;
-                            database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ lastMessage: text, unreadCount: currentUnread + 1, username: myName, avatarUrl: myAvatar });
-                        });
+                        if(otherUid) {
+                            const otherChatRef = database.ref(`userChats/${otherUid}/${currentRoomId}`);
+                            otherChatRef.update({ 
+                                username: myName, 
+                                avatarUrl: myAvatar,
+                                lastMessage: text
+                            });
+                            
+                            // Безопасно прибавляем счетчик непрочитанных
+                            otherChatRef.child('unreadCount').transaction((count) => {
+                                return (count || 0) + 1;
+                            });
+                        }
                     }
                 }
             });
