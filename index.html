@@ -116,23 +116,23 @@
             <button onclick="setCreateType('group')" style="background: #2ecc71; margin-bottom: 10px;">👥 Создать группу</button>
             <button onclick="hideModal('choiceCreateModal')" style="background: #c0392b;">Отмена</button>
         </div>
-    </div>        <div class="modal-overlay" id="createModal">
-            <div class="modal-content">
-                <h3 id="createModalTitle">Создать</h3>
-                <input type="text" id="chName" placeholder="Название">
-                <input type="text" id="chUsername" placeholder="Юзернейм (на англ.)">
-                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;">
-                    <input type="checkbox" id="chPrivate" style="width:20px; margin:0;"> Приватный (вход по коду)
-                </label>
-                <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать</button>
-                <hr style="border-color: #242f3d; margin: 15px 0;">
-                <input type="text" id="joinCode" placeholder="Секретный код">
-                <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
-                <button onclick="closeCreateModal()" style="background: #c0392b; margin-top: 10px;">Отмена</button>
-            </div>
-        </div>
+    </div>
 
-        <div class="modal-overlay" id="profileModal">
+    <div class="modal-overlay" id="createModal">
+        <div class="modal-content">
+            <h3 id="createModalTitle">Создать</h3>
+            <input type="text" id="chName" placeholder="Название">
+            <input type="text" id="chUsername" placeholder="Юзернейм (на англ.)">
+            <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                <input type="checkbox" id="chPrivate" style="width:20px; margin:0;"> Приватный (вход по коду)
+            </label>
+            <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать</button>
+            <hr style="border-color: #242f3d; margin: 15px 0;">
+            <input type="text" id="joinCode" placeholder="Секретный код">
+            <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
+            <button onclick="closeCreateModal()" style="background: #c0392b; margin-top: 10px;">Отмена</button>
+        </div>
+    </div>        <div class="modal-overlay" id="profileModal">
             <div class="modal-content" style="text-align: center; padding: 30px 20px;">
                 <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; width: 100px; height: 100px; font-size: 40px;">#</div>
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
