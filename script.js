@@ -465,4 +465,33 @@ auth.onAuthStateChanged((user) => {
     if (user) { localStorage.setItem('myUserId', user.uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile(); } 
     else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
 });
-if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }
+if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }function startChatFromProfile() {
+    if (!currentProfileUid) return; const myId = localStorage.getItem('myUserId'); const roomId = [myId, currentProfileUid].sort().join('_'); 
+    database.ref('users/' + myId).once('value').then((snap) => {
+        const myData = snap.val(); const myUsername = myData ? (myData.displayName || myData.username) : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
+        database.ref('users/' + currentProfileUid).once('value').then((otherSnap) => {
+            const otherData = otherSnap.val(); const otherName = otherData ? (otherData.displayName || otherData.username) : "Собеседник"; const otherAvatar = otherData ? otherData.avatarUrl : null;
+            
+            database.ref(`userChats/${myId}/${roomId}`).once('value').then(chatSnap => {
+                if (!chatSnap.exists() && otherData && otherData.forbidFirstMessage) {
+                    return alert("Пользователь запретил писать ему первыми. Вы сможете ответить, только если он напишет первым.");
+                }
+                database.ref(`userChats/${myId}/${roomId}`).update({ username: otherName, avatarUrl: otherAvatar, lastMessage: "Чат создан", unreadCount: 0 }); 
+                database.ref(`userChats/${currentProfileUid}/${roomId}`).update({ username: myUsername, avatarUrl: myAvatar, lastMessage: "Чат создан", unreadCount: 0 });
+                closeProfileModal(); openChat(roomId, otherName, null);
+            });
+        });
+    });
+}
+function showMembersList() {
+    if (!currentProfileChannelId) return; showModal('membersModal'); const isGroup = currentProfileChannelId.startsWith('gr_'); const dbRef = isGroup ? `groups/${currentProfileChannelId}/members` : `channels/${currentProfileChannelId}/subscribersList`; const container = document.getElementById('membersListContainer');
+    document.getElementById('membersModalTitle').textContent = isGroup ? "Участники" : "Подписчики"; container.innerHTML = "Загрузка...";
+    database.ref(dbRef).once('value').then(snap => {
+        container.innerHTML = ""; if(!snap.exists()) { container.innerHTML = "<span style='color:gray;'>Пусто</span>"; return; }
+        database.ref((isGroup ? 'groups/' : 'channels/') + currentProfileChannelId + '/owner').once('value').then(oSnap => {
+            const ownerId = oSnap.val(); const myId = localStorage.getItem('myUserId');
+            snap.forEach(child => { const uid = child.key; database.ref('users/' + uid).once('value').then(uSnap => { const u = uSnap.val(); if(!u) return; const div = document.createElement('div'); div.style = 'display:flex; justify-content:space-between; align-items:center;'; div.innerHTML = `<span onclick="hideModal('membersModal'); openProfileModal('${uid}')" style="cursor:pointer; color: #4fc3f7; text-decoration: underline;">@${u.username}</span>`; if (ownerId === myId && uid !== myId) { const kickBtn = document.createElement('button'); kickBtn.textContent = "Кик"; kickBtn.style = "background:#e74c3c; border:none; padding:5px 10px; border-radius:5px; color:white; cursor:pointer;"; kickBtn.onclick = () => kickMember(uid, isGroup); div.appendChild(kickBtn); } container.appendChild(div); }); });
+        });
+    });
+}
+function kickMember(uid, isGroup) { if(!confirm("Выгнать?")) return; const dbRef = isGroup ? `groups/${currentProfileChannelId}/members/${uid}` : `channels/${currentProfileChannelId}/subscribersList/${uid}`; database.ref(dbRef).remove().then(() => { if(!isGroup) database.ref(`channels/${currentProfileChannelId}/subscribers`).transaction(s => (s||1)-1); database.ref(`userChats/${uid}/${currentProfileChannelId}`).remove(); showMembersList(); }); }
