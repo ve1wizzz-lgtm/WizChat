@@ -391,4 +391,4 @@ auth.onAuthStateChanged((user) => {
     if (user) { localStorage.setItem('myUserId', user.uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile(); } 
     else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
 });
-if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }
+if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); } 
