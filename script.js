@@ -1,8 +1,3 @@
-alert("Скрипт загружен!");
-window.onerror = function(message, source, lineno, colno, error) {
-    alert("ОШИБКА: " + message + "\nСтрока: " + lineno);
-    return false;
-};
 const firebaseConfig = {
   apiKey: "AIzaSyD99mv9x7tSAItOJ4UooTyPhNlewRGQnh0",
   authDomain: "wizchat-3e52f.firebaseapp.com",
@@ -12,7 +7,6 @@ const firebaseConfig = {
   appId: "1:125275309502:web:b30f41e2686976a46765ef",
   databaseURL: "https://wizchat-3e52f-default-rtdb.firebaseio.com"
 };
-
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const database = firebase.database();
 const auth = firebase.auth();
@@ -49,27 +43,7 @@ function setupOnlineStatus(uid) {
 function showModal(id) { const el = document.getElementById(id); if(el) el.classList.add('show'); }
 function hideModal(id) { const el = document.getElementById(id); if(el) el.classList.remove('show'); }
 function openLightbox(src) { const lb = document.getElementById('imageLightbox'); document.getElementById('lightboxImg').src = src; lb.style.display = 'flex'; setTimeout(() => lb.classList.add('show'), 10); }
-function closeLightbox() { const lb = document.getElementById('imageLightbox'); lb.classList.remove('show'); setTimeout(() => lb.style.display = 'none', 300); }function toggleChatSearch() {
-    const container = document.getElementById('chatSearchContainer');
-    container.classList.toggle('open');
-    if (container.classList.contains('open')) { document.getElementById('chatSearchInput').focus(); } 
-    else { document.getElementById('chatSearchInput').value = ''; filterChatMessages(''); }
-}
-function filterChatMessages(query) {
-    const wrappers = document.querySelectorAll('.message-wrapper');
-    const lowerQuery = query.toLowerCase();
-    wrappers.forEach(w => {
-        if (!query) { w.style.display = 'flex'; }
-        else { const text = w.querySelector('.message').innerText.toLowerCase(); w.style.display = text.includes(lowerQuery) ? 'flex' : 'none'; }
-    });
-}
-function toggleMuteChat() {
-    const myId = localStorage.getItem('myUserId');
-    if (!currentRoomId) return;
-    const chatRef = database.ref(`userChats/${myId}/${currentRoomId}/muted`);
-    chatRef.once('value').then(snap => { const isMuted = !snap.val(); chatRef.set(isMuted); document.getElementById('muteToggle').checked = isMuted; });
-}
-document.addEventListener("DOMContentLoaded", () => {
+function closeLightbox() { const lb = document.getElementById('imageLightbox'); lb.classList.remove('show'); setTimeout(() => lb.style.display = 'none', 300); }document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
     if(uploadInput) {
         uploadInput.addEventListener('change', function(e) {
@@ -106,10 +80,9 @@ function toggleRecording() {
             mediaRecorder.start(); isRecording = true; micBtn.classList.add('recording');
             recordingTimeout = setTimeout(() => { if (isRecording) toggleRecording(); }, 30000);
         }).catch(err => { alert("Нет доступа к микрофону!"); console.error(err); });
-    } else {
-        mediaRecorder.stop(); isRecording = false; micBtn.classList.remove('recording'); clearTimeout(recordingTimeout);
-    }
-}function handleImageUpload(event) {
+    } else { mediaRecorder.stop(); isRecording = false; micBtn.classList.remove('recording'); clearTimeout(recordingTimeout); }
+}
+function handleImageUpload(event) {
     const file = event.target.files[0]; if (!file) return;
     const btn = event.target.nextElementSibling; const originalText = btn.innerHTML;
     btn.innerHTML = "⏳"; btn.disabled = true;
@@ -200,7 +173,8 @@ function spawnReactionEffect(event, emoji) {
         p.style.setProperty('--x', Math.cos(angle) * distance + 'px'); p.style.setProperty('--y', Math.sin(angle) * distance + 'px');
         document.body.appendChild(p); setTimeout(() => p.remove(), 600);
     }
-}function showMessageActions(event, msgId, isMine) {
+}
+function showMessageActions(event, msgId, isMine) {
     if(event) event.stopPropagation(); const msg = messagesCache[msgId]; if(!msg) return;
     currentMenuMsgId = msgId; clearTimeout(menuCloseTimeout);
     const overlay = document.getElementById('menuOverlay'); const menu = document.getElementById('msgContextMenu');
@@ -225,8 +199,7 @@ function openFullReactions(msgId) {
     const allEmojis = ['🤝','😎','💀','🙏','😭','🤔','😞','😯','👎','❤️‍🔥','👍','🔥','❤️','😂','😢','😡','🎉','🥳','🤩','😍','🤮','🤡','💩','👻','🤖','💯','👀','👌'];
     let html = ''; allEmojis.forEach(e => { html += `<button onclick="toggleReaction(event, '${currentRoomId}', '${msgId}', '${e}'); closeFullReactions(); closeContextMenu();">${e}</button>`; });
     grid.innerHTML = html; showModal('fullReactionsModal');
-}
-function closeFullReactions() { hideModal('fullReactionsModal'); }
+}function closeFullReactions() { hideModal('fullReactionsModal'); }
 function closeContextMenu() {
     const overlay = document.getElementById('menuOverlay'); const menu = document.getElementById('msgContextMenu');
     if(overlay) overlay.classList.remove('show'); if(menu) menu.classList.remove('show');
@@ -255,7 +228,8 @@ function toggleReaction(event, roomId, msgId, emoji) {
         return reactions;
     });
 }
-function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }function deleteChatFromProfile() {
+function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }
+function deleteChatFromProfile() {
     if(currentRoomId === 'global' || currentRoomId.startsWith('ch_') || currentRoomId.startsWith('gr_')) return;
     if(confirm("Удалить этот чат?")) {
         const myId = localStorage.getItem('myUserId');
@@ -280,8 +254,7 @@ function leaveChannel() {
         }
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы вышли.");
     });
-}
-function toggleBlockUser() {
+}function toggleBlockUser() {
     if (!currentProfileUid) return; const myId = localStorage.getItem('myUserId');
     const blockRef = database.ref(`users/${myId}/blocked/${currentProfileUid}`);
     blockRef.once('value').then(snap => {
@@ -318,7 +291,8 @@ function loadBlockedUsersList() {
         });
     });
 }
-function unblockFromSettings(uid) { const myId = localStorage.getItem('myUserId'); database.ref(`users/${myId}/blocked/${uid}`).remove().then(() => { loadBlockedUsersList(); }); }function openProfileModal(targetUid = null) {
+function unblockFromSettings(uid) { const myId = localStorage.getItem('myUserId'); database.ref(`users/${myId}/blocked/${uid}`).remove().then(() => { loadBlockedUsersList(); }); }
+function openProfileModal(targetUid = null) {
     if (!targetUid && currentRoomId === 'global') return;
     const av = document.getElementById('profAvatar'); const name = document.getElementById('profName'); const uname = document.getElementById('profUsername'); const bio = document.getElementById('profBio'); const subs = document.getElementById('profSubs'); const leaveBtn = document.getElementById('leaveChannelBtn'); const deleteChatBtn = document.getElementById('deleteChatBtn'); const writeBtn = document.getElementById('writeMessageBtn'); const blockBtn = document.getElementById('blockUserBtn'); const muteCont = document.getElementById('muteSettingContainer'); const showMembersBtn = document.getElementById('showMembersBtn');
     if(!document.getElementById('profileModal')) return;
@@ -360,8 +334,7 @@ function loadUserProfileInModal(uid) {
             }
         }
     });
-}
-function startChatFromProfile() {
+}function startChatFromProfile() {
     if (!currentProfileUid) return; const myId = localStorage.getItem('myUserId'); const roomId = [myId, currentProfileUid].sort().join('_'); 
     database.ref('users/' + myId).once('value').then((snap) => {
         const myData = snap.val(); const myUsername = myData ? (myData.displayName || myData.username) : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
@@ -396,7 +369,8 @@ function showMembersList() {
 function kickMember(uid, isGroup) {
     if(!confirm("Выгнать?")) return; const dbRef = isGroup ? `groups/${currentProfileChannelId}/members/${uid}` : `channels/${currentProfileChannelId}/subscribersList/${uid}`;
     database.ref(dbRef).remove().then(() => { if(!isGroup) database.ref(`channels/${currentProfileChannelId}/subscribers`).transaction(s => (s||1)-1); database.ref(`userChats/${uid}/${currentProfileChannelId}`).remove(); showMembersList(); });
-}function createChannel(btn) {
+}
+function createChannel(btn) {
     const name = document.getElementById('chName').value.trim(); const username = document.getElementById('chUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''); const isPrivate = document.getElementById('chPrivate').checked; const isGroup = document.getElementById('chIsGroup').checked; const myId = localStorage.getItem('myUserId');
     if (!name || !username) return alert("Заполни все поля!"); btn.disabled = true;
     database.ref('usernames/' + username).once('value').then((snap) => {
@@ -457,7 +431,7 @@ function loginUser() {
         const uid = userCredential.user.uid; localStorage.setItem('myUserId', uid);
         document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex';
         setupOnlineStatus(uid); loadMyChatsList();
-    }).catch(err => alert("Неверный юзернейм или пароль"));
+    }).catch(err => alert("Неверный юзернейм или пароль: " + err.message));
 }
 function logoutUser() {
     if (!confirm("Выйти из аккаунта?")) return;
@@ -512,7 +486,8 @@ function liveSearch() {
         });
         results.style.display = count > 0 ? 'block' : 'none';
     });
-}function openChat(roomId, title, element) {
+}
+function openChat(roomId, title, element) {
     currentRoomId = roomId; cancelReply(); closeContextMenu(); closeFullReactions();
     document.getElementById('emojiPanel').style.display = 'none'; document.getElementById('mentionPopup').style.display = 'none'; document.getElementById('chatSearchContainer').classList.remove('open');
     const chatList = document.getElementById('chatList'); if(chatList) { for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); } }
@@ -574,86 +549,4 @@ function loadChat(roomId, title) {
             if (roomId !== 'global') { database.ref(`userChats/${myId}/${roomId}`).update({ unreadCount: 0 }); }
         }
     });
-    currentRoomRef.on('child_removed', function(snapshot) { const el = document.getElementById('msg_wrap_' + snapshot.key); if (el) el.remove(); });
-    currentRoomRef.on('child_changed', function(snapshot) {
-        const msg = snapshot.val(); const msgId = snapshot.key; messagesCache[msgId] = msg; 
-        const reactionsDiv = document.getElementById('reactions_' + msgId); if (reactionsDiv) { reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}, msgId, roomId); }
-        const viewsSpan = document.getElementById('views_' + msgId); if(viewsSpan) viewsSpan.textContent = msg.views || 0;
-        const tickSpan = document.getElementById('tick_' + msgId); if(tickSpan) { if(msg.read) { tickSpan.className = 'msg-tick read'; tickSpan.textContent = '✓✓'; } else { tickSpan.className = 'msg-tick'; tickSpan.textContent = '✓'; } }
-        const textDiv = document.getElementById('text_' + msgId);
-        if(textDiv && msg.edited && !msg.image && !msg.audio) { let parsedText = msg.text.replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention" onclick="event.stopPropagation(); openProfileByUsername(\'$1\')">@$1</span>'); textDiv.innerHTML = `${parsedText} <span style="font-size:10px; color:#aaa;">(изм.)</span> <span class="msg-time">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`; }
-    });
-}
-function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
-    if(!container) return;
-    if (msg.type === 'system') { const sysDiv = document.createElement('div'); sysDiv.style.textAlign = 'center'; sysDiv.style.color = '#aaa'; sysDiv.style.fontSize = '12px'; sysDiv.style.margin = '10px 0'; sysDiv.textContent = msg.text; container.appendChild(sysDiv); return; }
-    const wrapper = document.createElement('div'); wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received'); wrapper.id = 'msg_wrap_' + msgId;
-    const newMessage = document.createElement('div'); newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
-    newMessage.onclick = function(e) { showMessageActions(e, msgId, msg.userId === myId); };
-    let replyHTML = ''; if (msg.replyTo) replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
-    const timeString = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    if (msg.userId !== myId && msg.username) {
-        database.ref('users/' + msg.userId).once('value').then((uSnap) => {
-            const uData = uSnap.val(); let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``; let avText = uData && uData.avatarUrl ? '' : (msg.username ? msg.username[0].toUpperCase() : '?');
-            const senderInfo = document.createElement('div'); senderInfo.className = 'sender-info'; senderInfo.onclick = function(e) { e.stopPropagation(); openProfileModal(msg.userId); }; senderInfo.style.cursor = 'pointer';
-            senderInfo.innerHTML = `<div class="sender-avatar" style="${avStyle}">${avText}</div><span class="sender-name">${msg.username}</span>`; wrapper.insertBefore(senderInfo, newMessage);
-        });
-    }
-    const editedMark = msg.edited ? `<span style="font-size:10px; color:#aaa;">(изм.)</span>` : ''; let tickHTML = '';
-    if (msg.userId === myId) { tickHTML = msg.read ? `<span id="tick_${msgId}" class="msg-tick read">✓✓</span>` : `<span id="tick_${msgId}" class="msg-tick">✓</span>`; }
-    if (msg.image) { newMessage.innerHTML = replyHTML + `<img src="${msg.image}" class="message-image" alt="Фото" onclick="event.stopPropagation(); openLightbox('${msg.image}')"><div style="text-align:right; margin-top:2px;"><span class="msg-time">${timeString}</span>${tickHTML}</div>`; } 
-    else if (msg.audio) { newMessage.innerHTML = replyHTML + `<audio controls class="audio-player" src="${msg.audio}" onclick="event.stopPropagation()"></audio><div style="text-align:right; margin-top:2px;"><span class="msg-time">${timeString}</span>${tickHTML}</div>`; } 
-    else { let parsedText = msg.text.replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention" onclick="event.stopPropagation(); openProfileByUsername(\'$1\')">@$1</span>'); newMessage.innerHTML = replyHTML + `<div id="text_${msgId}">${parsedText} ${editedMark} <span class="msg-time">${timeString}</span>${tickHTML}</div>`; }
-    wrapper.appendChild(newMessage);
-    if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) { viewedMessages.push(msgId); localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages)); database.ref(`chats/${roomId}/${msgId}/views`).transaction((v) => (v || 0) + 1); }
-    let viewsHTML = ''; if (roomId.startsWith('ch_')) viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`;
-    const reactionsDiv = document.createElement('div'); reactionsDiv.id = 'reactions_' + msgId; reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}, msgId, roomId);
-    wrapper.appendChild(reactionsDiv); if (viewsHTML) wrapper.insertAdjacentHTML('beforeend', viewsHTML); container.appendChild(wrapper);
-}
-function getReactionsHTML(reactions, msgId, roomId) {
-    let html = '';
-    for (const [emoji, users] of Object.entries(reactions)) { 
-        if (users.length > 0) { html += `<span onclick="event.stopPropagation(); toggleReaction(event, '${roomId}', '${msgId}', '${emoji}')" style="cursor:pointer; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`; }
-    }
-    return html;
-}
-function openProfileByUsername(username) { database.ref('users').orderByChild('username').equalTo(username).once('value', snap => { if(snap.exists()) { snap.forEach(child => { openProfileModal(child.key); }); } }); }
-function sendMessage() {
-    const input = document.getElementById('msgInput'); if(!input) return; const text = input.value; const myId = localStorage.getItem('myUserId');
-    if (text.length > 500) return alert("Максимум 500 символов.");
-    if (text.trim() !== "" && myId) {
-        database.ref('users/' + myId).once('value').then((snap) => {
-            const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
-            const msgData = { text: text, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false };
-            if (activeReplyContext) msgData.replyTo = activeReplyContext;
-            database.ref('chats/' + currentRoomId).push(msgData).then(() => {
-                input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
-                document.getElementById('emojiPanel').style.display = 'none';
-                if (currentRoomId !== 'global') {
-                    database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
-                    if (!currentRoomId.startsWith('ch_') && !currentRoomId.startsWith('gr_')) {
-                        const otherUid = currentRoomId.split('_').find(id => id !== myId);
-                        if(otherUid) { const otherChatRef = database.ref(`userChats/${otherUid}/${currentRoomId}`); otherChatRef.update({ username: myName, avatarUrl: myAvatar, lastMessage: text }); otherChatRef.child('unreadCount').transaction((count) => (count || 0) + 1); }
-                    }
-                }
-            });
-        });
-    }
-}
-document.getElementById('msgInput').addEventListener('keypress', function (e) { 
-    if (e.key === 'Enter') { 
-        const popup = document.getElementById('mentionPopup');
-        if(popup.style.display === 'flex') { const firstItem = popup.querySelector('.mention-item'); if(firstItem) { firstItem.click(); e.preventDefault(); return; } }
-        sendMessage(); 
-    } 
-});
-applySettings();
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        localStorage.setItem('myUserId', user.uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex';
-        setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile();
-    } else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
-});
-if (window.Telegram && window.Telegram.WebApp) {
-    window.Telegram.WebApp.expand();
-}
+    currentRoomRef.on('child_removed', function(snapshot) { const el = document.getElementById('msg_wr
