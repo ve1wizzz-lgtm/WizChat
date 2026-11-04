@@ -1,7 +1,7 @@
 const firebaseConfig = { apiKey: "AIzaSyD99mv9x7tSAItOJ4UooTyPhNlewRGQnh0", authDomain: "wizchat-3e52f.firebaseapp.com", projectId: "wizchat-3e52f", storageBucket: "wizchat-3e52f.firebasestorage.app", messagingSenderId: "125275309502", appId: "1:125275309502:web:b30f41e2686976a46765ef", databaseURL: "https://wizchat-3e52f-default-rtdb.firebaseio.com" };
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const database = firebase.database(); const auth = firebase.auth();
-let currentRoomId = 'global', currentRoomRef = null, currentTypingRef = null, currentStatusRef = null, currentBlockRef1 = null, currentBlockRef2 = null, currentProfileChannelId = null, currentProfileUid = null, activeReplyContext = null, messagesCache = {}, typingTimeout, tempAvatarBase64 = null, currentMenuMsgId = null, menuCloseTimeout = null, allUsersCache = [], mediaRecorder, audioChunks = [], isRecording = false, recordingTimeout, createType = 'channel', forwardMsgData = null, hiddenMessages = [];
+let currentRoomId = 'global', currentRoomRef = null, currentTypingRef = null, currentStatusRef = null, currentBlockRef1 = null, currentBlockRef2 = null, currentProfileChannelId = null, currentProfileUid = null, activeReplyContext = null, messagesCache = {}, typingTimeout, tempAvatarBase64 = null, tempBannerBase64 = null, currentMenuMsgId = null, menuCloseTimeout = null, allUsersCache = [], mediaRecorder, audioChunks = [], isRecording = false, recordingTimeout, createType = 'channel', forwardMsgData = null, hiddenMessages = [];
 if ("Notification" in window && Notification.permission !== "granted") { Notification.requestPermission(); }
 function setupOnlineStatus(uid) {
     const isOffline = { state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP }; const isOnline = { state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP };
@@ -164,7 +164,7 @@ function unblockCurrentUser() { const myId = localStorage.getItem('myUserId'); i
 function unblockFromSettings(uid) { const myId = localStorage.getItem('myUserId'); database.ref(`users/${myId}/blocked/${uid}`).remove().then(() => { loadBlockedUsersList(); }); }
 function openProfileModal(targetUid = null) {
     if (!targetUid && currentRoomId === 'global') return;
-    const av = document.getElementById('profAvatar'); const name = document.getElementById('profName'); const uname = document.getElementById('profUsername'); const bio = document.getElementById('profBio'); const subs = document.getElementById('profSubs'); const leaveBtn = document.getElementById('leaveChannelBtn'); const deleteChatBtn = document.getElementById('deleteChatBtn'); const writeBtn = document.getElementById('writeMessageBtn'); const blockBtn = document.getElementById('blockUserBtn'); const muteCont = document.getElementById('muteSettingContainer'); const showMembersBtn = document.getElementById('showMembersBtn');
+    const av = document.getElementById('profAvatar'); const name = document.getElementById('profName'); const uname = document.getElementById('profUsername'); const bio = document.getElementById('profBio'); const subs = document.getElementById('profSubs'); const leaveBtn = document.getElementById('leaveChannelBtn'); const deleteChatBtn = document.getElementById('deleteChatBtn'); const writeBtn = document.getElementById('writeMessageBtn'); const blockBtn = document.getElementById('blockUserBtn'); const muteCont = document.getElementById('muteSettingContainer'); const showMembersBtn = document.getElementById('showMembersBtn'); const bannerEl = document.getElementById('profBanner');
     if(!document.getElementById('profileModal')) return; name.textContent = "Загрузка..."; showModal('profileModal');
     [leaveBtn, deleteChatBtn, writeBtn, blockBtn, muteCont, showMembersBtn].forEach(btn => { if(btn) btn.style.display = 'none'; }); bio.textContent = ''; av.style.backgroundImage = 'none';
     if (targetUid) { currentProfileUid = targetUid; currentProfileChannelId = null; loadUserProfileInModal(targetUid); } 
@@ -178,12 +178,13 @@ function openProfileModal(targetUid = null) {
         if(otherUid) { currentProfileUid = otherUid; loadUserProfileInModal(otherUid); if(deleteChatBtn) deleteChatBtn.style.display = 'block'; if(writeBtn) writeBtn.style.display = 'block'; if(muteCont) muteCont.style.display = 'flex'; database.ref(`userChats/${localStorage.getItem('myUserId')}/${currentRoomId}/muted`).once('value').then(mSnap => { document.getElementById('muteToggle').checked = mSnap.val() === true; }); }
     }
 }function loadUserProfileInModal(uid) {
-    const av = document.getElementById('profAvatar'); const name = document.getElementById('profName'); const uname = document.getElementById('profUsername'); const bio = document.getElementById('profBio'); const subs = document.getElementById('profSubs'); const writeBtn = document.getElementById('writeMessageBtn'); const blockBtn = document.getElementById('blockUserBtn'); const myId = localStorage.getItem('myUserId');
+    const av = document.getElementById('profAvatar'); const name = document.getElementById('profName'); const uname = document.getElementById('profUsername'); const bio = document.getElementById('profBio'); const subs = document.getElementById('profSubs'); const writeBtn = document.getElementById('writeMessageBtn'); const blockBtn = document.getElementById('blockUserBtn'); const myId = localStorage.getItem('myUserId'); const bannerEl = document.getElementById('profBanner');
     database.ref('users/' + uid).once('value').then((snap) => {
         const data = snap.val();
         if(data) {
             name.textContent = data.displayName || data.username || "Без имени"; uname.textContent = '@' + (data.username || "unknown"); bio.textContent = data.bio || "Описание не добавлено...";
-            if(data.avatarUrl) { av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent'; } else { av.textContent = data.avatar || (data.username ? data.username[0].toUpperCase() : '?'); av.style.backgroundColor = '#4fc3f7'; }
+            if(data.avatarUrl) { av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent'; } else { av.textContent = data.avatar || (data.username ? data.username[0].toUpperCase() : '?'); av.style.backgroundColor = '#4fc3f7'; av.style.backgroundImage = 'none'; }
+            if (bannerEl) { if(data.bannerUrl) { bannerEl.style.backgroundImage = `url(${data.bannerUrl})`; } else { bannerEl.style.backgroundImage = 'none'; bannerEl.style.backgroundColor = '#2b5278'; } }
             database.ref('status/' + uid).once('value').then(sSnap => { const status = sSnap.val(); if(status && status.state === 'online') subs.innerHTML = `Пользователь <span class="online-dot"></span>`; else subs.textContent = "Пользователь (офлайн)"; });
             if (uid !== myId) { database.ref(`users/${myId}/blocked/${uid}`).once('value').then(bSnap => { if(bSnap.exists()) { if(blockBtn) { blockBtn.style.display = 'block'; blockBtn.textContent = "✅ Разблокировать"; blockBtn.style.background = "#2ecc71"; } if(writeBtn) writeBtn.style.display = 'none'; } else { if(blockBtn) { blockBtn.style.display = 'block'; blockBtn.textContent = "🚫 Заблокировать"; blockBtn.style.background = "#e67e22"; } if(writeBtn) writeBtn.style.display = 'block'; } }); }
         }
@@ -239,7 +240,27 @@ function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySett
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
 function loadSettingsToggles() { const myId = localStorage.getItem('myUserId'); if(!myId) return; database.ref('users/' + myId).once('value').then(snap => { const data = snap.val(); if(data) { document.getElementById('privateAccountToggle').checked = data.privateAccount === true; document.getElementById('forbidFirstMsgToggle').checked = data.forbidFirstMessage === true; } }); }
 function togglePrivateAccount() { const myId = localStorage.getItem('myUserId'); const isChecked = document.getElementById('privateAccountToggle').checked; database.ref('users/' + myId).update({ privateAccount: isChecked }); }
-function toggleForbidFirstMsg() { const myId = localStorage.getItem('myUserId'); const isChecked = document.getElementById('forbidFirstMsgToggle').checked; database.ref('users/' + myId).update({ forbidFirstMessage: isChecked }); }function registerUser() {
+function toggleForbidFirstMsg() { const myId = localStorage.getItem('myUserId'); const isChecked = document.getElementById('forbidFirstMsgToggle').checked; database.ref('users/' + myId).update({ forbidFirstMessage: isChecked }); }function handleAvatarUpload(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (file.size > 500 * 1024) return alert("Файл слишком большой! Максимум 500 КБ для GIF/фото.");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        tempAvatarBase64 = e.target.result;
+        const profAvatar = document.getElementById('profileAvatar'); profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${tempAvatarBase64})`;
+    };
+    reader.readAsDataURL(file);
+}
+function handleBannerUpload(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (file.size > 1024 * 1024) return alert("Баннер слишком большой! Максимум 1 МБ.");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        tempBannerBase64 = e.target.result;
+        const bannerEl = document.getElementById('myProfileBanner'); bannerEl.style.backgroundImage = `url(${tempBannerBase64})`;
+    };
+    reader.readAsDataURL(file);
+}
+function registerUser() {
     const rawUsername = document.getElementById('loginUsername').value;
     const username = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     const password = document.getElementById('loginPassword').value;
@@ -248,7 +269,7 @@ function toggleForbidFirstMsg() { const myId = localStorage.getItem('myUserId');
     const email = username + "@wizchat.com";
     auth.createUserWithEmailAndPassword(email, password).then((userCredential) => {
         const uid = userCredential.user.uid;
-        database.ref('users/' + uid).set({ username: username, displayName: username, bio: "", avatarUrl: null, privateAccount: false, forbidFirstMessage: false }).then(() => {
+        database.ref('users/' + uid).set({ username: username, displayName: username, bio: "", avatarUrl: null, bannerUrl: null, privateAccount: false, forbidFirstMessage: false }).then(() => {
             database.ref('usernames/' + username).set({ type: 'user', id: uid }).then(() => { alert("Регистрация успешна! Теперь войди."); auth.signOut(); });
         }).catch(err => alert("Ошибка базы данных: " + err.message));
     }).catch(err => alert("Ошибка Firebase Auth: " + err.message));
@@ -257,20 +278,29 @@ function loginUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase(); const password = document.getElementById('loginPassword').value;
     if (!username || !password) return alert("Заполни все поля"); const email = username + "@wizchat.com";
     auth.signInWithEmailAndPassword(email, password).then((userCredential) => {
-        const uid = userCredential.user.uid; localStorage.setItem('myUserId', uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(uid); loadMyChatsList();
+        const uid = userCredential.user.uid; localStorage.setItem('myUserId', uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(uid); loadMyChatsList(); loadProfile();
     }).catch(err => alert("Неверный юзернейм или пароль: " + err.message));
 }
 function logoutUser() { if (!confirm("Выйти из аккаунта?")) return; auth.signOut().then(() => { localStorage.removeItem('myUserId'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('authScreen').style.display = 'flex'; }); }
 function loadProfile() {
     const myId = localStorage.getItem('myUserId'); if (!myId) return;
     database.ref('users/' + myId).once('value').then(snap => {
-        const data = snap.val(); if (!data) return; const avatarEl = document.getElementById('profileAvatar'); document.getElementById('profileDisplayName').textContent = data.displayName || data.username || "Без имени"; document.getElementById('profileUsername').textContent = '@' + (data.username || "unknown");
-        if (data.avatarUrl) { avatarEl.textContent = ''; avatarEl.style.backgroundImage = `url(${data.avatarUrl})`; } else { avatarEl.textContent = data.username ? data.username[0].toUpperCase() : '?'; } document.getElementById('newDisplayName').value = data.displayName || ''; document.getElementById('newBio').value = data.bio || '';
+        const data = snap.val(); if (!data) return; 
+        const avatarEl = document.getElementById('profileAvatar'); const bannerEl = document.getElementById('myProfileBanner');
+        document.getElementById('profileDisplayName').textContent = data.displayName || data.username || "Без имени"; 
+        if (data.avatarUrl) { avatarEl.textContent = ''; avatarEl.style.backgroundImage = `url(${data.avatarUrl})`; } else { avatarEl.textContent = data.username ? data.username[0].toUpperCase() : '?'; avatarEl.style.backgroundImage = 'none'; } 
+        if (data.bannerUrl) { bannerEl.style.backgroundImage = `url(${data.bannerUrl})`; } else { bannerEl.style.backgroundImage = 'none'; bannerEl.style.backgroundColor = '#2b5278'; }
+        document.getElementById('newDisplayName').value = data.displayName || ''; document.getElementById('newBio').value = data.bio || '';
     });
 }
 function saveProfile() {
-    const myId = localStorage.getItem('myUserId'); if (!myId) return; const newName = document.getElementById('newDisplayName').value.trim(); const newBio = document.getElementById('newBio').value.trim(); const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim(); const avatarToSave = tempAvatarBase64 || newAvatarUrl || null;
-    const updates = {}; if (newName) updates.displayName = newName; updates.bio = newBio; if (avatarToSave) updates.avatarUrl = avatarToSave; database.ref('users/' + myId).update(updates).then(() => { tempAvatarBase64 = null; document.getElementById('newAvatarUrl').value = ''; alert("Профиль сохранён!"); loadProfile(); });
+    const myId = localStorage.getItem('myUserId'); if (!myId) return; 
+    const newName = document.getElementById('newDisplayName').value.trim(); const newBio = document.getElementById('newBio').value.trim(); 
+    const updates = {}; 
+    if (newName) updates.displayName = newName; updates.bio = newBio; 
+    if (tempAvatarBase64) updates.avatarUrl = tempAvatarBase64; 
+    if (tempBannerBase64) updates.bannerUrl = tempBannerBase64; 
+    database.ref('users/' + myId).update(updates).then(() => { tempAvatarBase64 = null; tempBannerBase64 = null; alert("Профиль сохранён!"); loadProfile(); });
 }
 function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId'); if (!myId) return; const chatList = document.getElementById('chatList'); if (!chatList) return; chatList.innerHTML = '';
@@ -350,7 +380,7 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
     const editedMark = msg.edited ? `<span style="font-size:10px; color:#aaa;">(изм.)</span>` : ''; let tickHTML = ''; if (msg.userId === myId) { tickHTML = msg.read ? `<span id="tick_${msgId}" class="msg-tick read">✓✓</span>` : `<span id="tick_${msgId}" class="msg-tick">✓</span>`; }
     if (msg.image) { newMessage.innerHTML = replyHTML + `<img src="${msg.image}" class="message-image" alt="Фото" onclick="event.stopPropagation(); openLightbox('${msg.image}')"><div style="text-align:right; margin-top:2px;"><span class="msg-time">${timeString}</span>${tickHTML}</div>`; } else if (msg.audio) { newMessage.innerHTML = replyHTML + `<audio controls class="audio-player" src="${msg.audio}" onclick="event.stopPropagation()"></audio><div style="text-align:right; margin-top:2px;"><span class="msg-time">${timeString}</span>${tickHTML}</div>`; } else { let parsedText = msg.text.replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention" onclick="event.stopPropagation(); openProfileByUsername(\'$1\')">@$1</span>'); newMessage.innerHTML = replyHTML + `<div id="text_${msgId}">${parsedText} ${editedMark} <span class="msg-time">${timeString}</span>${tickHTML}</div>`; }
     wrapper.appendChild(newMessage); if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) { viewedMessages.push(msgId); localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages)); database.ref(`chats/${roomId}/${msgId}/views`).transaction((v) => (v || 0) + 1); }
-    let viewsHTML = ''; if (roomId.startsWith('ch_')) viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`; const reactionsDiv = document.createElement('div'); reactionsDiv.id = 'reactions_' + msgId; reactionsDiv.innerHTML =getReactionsHTML(msg.reactions || {}, msgId, roomId); wrapper.appendChild(reactionsDiv); if (viewsHTML) wrapper.insertAdjacentHTML('beforeend', viewsHTML); container.appendChild(wrapper);
+    let viewsHTML = ''; if (roomId.startsWith('ch_')) viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`; const reactionsDiv = document.createElement('div'); reactionsDiv.id = 'reactions_' + msgId; reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}, msgId, roomId); wrapper.appendChild(reactionsDiv); if (viewsHTML) wrapper.insertAdjacentHTML('beforeend', viewsHTML); container.appendChild(wrapper);
 }
 function getReactionsHTML(reactions, msgId, roomId) { let html = ''; for (const [emoji, users] of Object.entries(reactions)) { if (users.length > 0) { html += `<span onclick="event.stopPropagation(); toggleReaction(event, '${roomId}', '${msgId}', '${emoji}')" style="cursor:pointer; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`; } } return html; }
 function openProfileByUsername(username) { database.ref('users').orderByChild('username').equalTo(username).once('value', snap => { if(snap.exists()) { snap.forEach(child => { openProfileModal(child.key); }); } }); }
