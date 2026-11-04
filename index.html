@@ -13,8 +13,12 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Звук уведомления -->
     <audio id="notifySound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+    <div id="msgContextMenu" class="msg-context-menu" style="display: none;">
+        <div class="context-reactions" id="contextReactions"></div>
+        <div class="context-actions" id="contextActions"></div>
+    </div>
 
     <div class="auth-screen" id="authScreen">
         <h1>Вход в WizChat</h1>
@@ -41,9 +45,7 @@
                     <button onclick="openCreateModal()" style="background: #2b5278; border: none; color: white; padding: 5px 10px; border-radius: 10px; cursor: pointer;">➕</button>
                 </div>
                 
-                <div class="chat-list" id="chatList">
-                    <div class="chat-item active" onclick="openChat('global', 'Общий чат', this)">💬 Общий чат</div>
-                </div>
+                <div class="chat-list" id="chatList"></div>
             </div>
         </div>
 
@@ -78,14 +80,11 @@
             <div class="profile-settings">
                 <label>Имя (Никнейм)</label>
                 <input type="text" id="newDisplayName" placeholder="Введите имя">
-                
                 <label>Загрузить фото с телефона</label>
                 <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
                 <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
-                
                 <label>Или вставьте ссылку на фото</label>
                 <input type="text" id="newAvatarUrl" placeholder="https://...">
-                
                 <button onclick="saveProfile()">Сохранить профиль</button>
             </div>
         </div>
@@ -96,7 +95,12 @@
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
                 <p id="profUsername" style="color: #4fc3f7; margin-bottom: 15px; font-size: 16px;">@...</p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
-                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px;">Отписаться</button>
+                
+                <!-- Кнопка удаления чата -->
+                <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
+                
+                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
+                
                 <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
@@ -107,7 +111,6 @@
                 <span id="chatTitle" onclick="openProfileModal()" style="cursor: pointer; flex:1;">Общий чат</span>
             </div>
             <div class="messages" id="messages"></div>
-            
             <div class="reply-preview" id="replyPreview" style="display: none;">
                 <div class="reply-line"></div>
                 <div class="reply-content">
@@ -116,7 +119,6 @@
                 </div>
                 <button onclick="cancelReply()" class="cancel-reply-btn">✖</button>
             </div>
-
             <div class="input-area" id="messageInputArea">
                 <input type="text" id="msgInput" placeholder="Сообщение...">
                 <button onclick="sendMessage()">➤</button>
