@@ -134,4 +134,4 @@ html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;
 input:checked + .slider { background-color: #2ecc71; }
 input:checked + .slider:before { transform: translateX(20px); }
 @keyframes flyOut { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--x), var(--y)) scale(0.5); opacity: 0; } }
-.reaction-particle { position: fixed; font-size: 26px; pointer-events: none; z-index: 9999; animation: flyOut 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reaction-particle { position: fixed; font-size: 26px; pointer-events: none; z-index: 9999; animation: flyOut 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; } 
