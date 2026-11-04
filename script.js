@@ -17,6 +17,7 @@ let currentRoomRef = null;
 let currentProfileChannelId = null; 
 let activeReplyContext = null;
 let messagesCache = {}; 
+let typingTimeout; // Таймер для "Печатает..."
 
 function setReply(msgId) {
     const msg = messagesCache[msgId];
@@ -62,9 +63,7 @@ function leaveChannel() {
         database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
     });
-}
-
-function openProfileModal() {
+}function openProfileModal() {
     if (currentRoomId === 'global') return;
     const modal = document.getElementById('profileModal');
     const av = document.getElementById('profAvatar');
@@ -139,7 +138,9 @@ function joinChannelByCode() {
             });
         } else { alert("Неверный код."); }
     });
-}function switchTab(tabId, element) {
+}
+
+function switchTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active'); element.classList.add('active');
@@ -153,9 +154,7 @@ function applySettings() {
 }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
-applySettings();
-
-function registerUser() {
+applySettings();function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     if(!username || password.length < 6) { return alert("Пароль мин. 6 символов!"); }
@@ -181,7 +180,7 @@ auth.onAuthStateChanged((user) => {
     if (user) {
         document.getElementById('authScreen').style.display = 'none'; 
         document.getElementById('mainApp').style.display = 'flex';
-        document.getElementById('bottomNav').style.display = 'flex'; // Принудительно показываем панель
+        document.getElementById('bottomNav').style.display = 'flex'; 
         localStorage.setItem('myUserId', user.uid); 
         loadChat('global', 'Общий чат'); 
         loadMyChatsList(); 
@@ -223,14 +222,8 @@ function saveProfile() {
     const newName = document.getElementById('newDisplayName').value.trim();
     const newAvatar = document.getElementById('newAvatarText').value.trim();
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
-    
     if(!newName) return alert("Введите имя!");
-    
-    database.ref('users/' + myId).update({ 
-        displayName: newName, 
-        avatar: newAvatar || newName[0].toUpperCase(),
-        avatarUrl: newAvatarUrl
-    }).then(() => alert("Профиль обновлен!"));
+    database.ref('users/' + myId).update({ displayName: newName, avatar: newAvatar || newName[0].toUpperCase(), avatarUrl: newAvatarUrl }).then(() => alert("Профиль обновлен!"));
 }
 
 function liveSearch() {
@@ -284,7 +277,9 @@ function startPrivateChat(otherUid, otherUsername) {
         openChat(roomId, otherUsername, null);
         document.getElementById('searchInput').value = ''; document.getElementById('searchResults').style.display = 'none';
     });
-}function loadMyChatsList() {
+}
+
+function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
     database.ref(`userChats/${myId}`).on('value', (snapshot) => {
@@ -336,6 +331,28 @@ function loadChat(roomId, title) {
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
 
+    // СЛУШАЕМ СТАТУС "ПЕЧАТАЕТ..."
+    database.ref('typing/' + roomId).on('value', (snap) => {
+        const typingData = snap.val();
+        let someoneTyping = false;
+        let typingName = "";
+        
+        if (typingData) {
+            for (const uid in typingData) {
+                if (uid !== myId && typingData[uid].isTyping) {
+                    someoneTyping = true;
+                    typingName = typingData[uid].name;
+                }
+            }
+        }
+        
+        if (someoneTyping) {
+            document.getElementById('chatTitle').textContent = `${typingName} печатает...`;
+        } else {
+            document.getElementById('chatTitle').textContent = title;
+        }
+    });
+
     if (roomId.startsWith('ch_')) {
         database.ref('channels/' + roomId).once('value').then((snap) => {
             const chData = snap.val();
@@ -370,68 +387,80 @@ function loadChat(roomId, title) {
         if(viewsSpan) viewsSpan.textContent = msg.views || 0;
     });
 
-    function renderMessage(msgId, msg, roomId, myId, container) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received');
-        wrapper.id = 'msg_wrap_' + msgId;
-        
-        const newMessage = document.createElement('div');
-        newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
-        
-        let replyHTML = '';
-        if (msg.replyTo) {
-            replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
-        }
-        
-        let senderHTML = '';
-        if (msg.userId !== myId && msg.username) {
-            database.ref('users/' + msg.userId).once('value').then((uSnap) => {
-                const uData = uSnap.val();
-                let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
-                let avText = uData && uData.avatarUrl ? '' : (msg.username[0].toUpperCase());
-                let avBlock = `<div class="sender-avatar" style="${avStyle}">${avText}</div>`;
-                
-                // Вставляем аватарку и ник
-                const senderInfo = document.createElement('div');
-                senderInfo.className = 'sender-info';
-                senderInfo.innerHTML = `${avBlock}<span class="sender-name">${msg.username}</span>`;
-                wrapper.insertBefore(senderInfo, newMessage);
-            });
-        }
-        
-        newMessage.innerHTML = replyHTML + `<div>${msg.text}</div>`;
-        wrapper.appendChild(newMessage);
-
-        if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
-            viewedMessages.push(msgId);
-            localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages));
-            database.ref(`chats/${roomId}/${msgId}/views`).transaction((v) => (v || 0) + 1);
-        }
-
-        let viewsHTML = '';
-        if (roomId.startsWith('ch_')) {
-            viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`;
-        }
-        
-        const reactionsDiv = document.createElement('div');
-        reactionsDiv.id = 'reactions_' + msgId;
-        reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {});
-        
-        let actionBtn = `<button class="msg-btn" onclick="setReply('${msgId}')">↩️</button>`;
-        let reactBtns = `<button class="msg-btn" onclick="toggleReaction('${roomId}', '${msgId}', '👍')">👍</button>
-                         <button class="msg-btn" onclick="toggleReaction('${roomId}', '${msgId}', '🔥')">🔥</button>`;
-        let deleteBtn = (msg.userId === myId) ? `<button class="msg-btn" onclick="deleteMessage('${roomId}', '${msgId}')">🗑️</button>` : '';
-
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'msg-actions';
-        actionsDiv.innerHTML = `${actionBtn} ${reactBtns} ${deleteBtn}`;
-
-        wrapper.appendChild(reactionsDiv);
-        wrapper.appendChild(actionsDiv);
-        if (viewsHTML) { wrapper.insertAdjacentHTML('beforeend', viewsHTML); }
-
-        container.appendChild(wrapper);
+    // Обработчик ввода текста для статуса "Печатает"
+    const msgInput = document.getElementById('msgInput');
+    msgInput.addEventListener('input', () => {
+        database.ref(`users/${myId}`).once('value').then(uSnap => {
+            const myData = uSnap.val();
+            const myName = myData ? myData.displayName || myData.username : "Кто-то";
+            database.ref(`typing/${roomId}/${myId}`).set({ isTyping: true, name: myName });
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                database.ref(`typing/${roomId}/${myId}`).set({ isTyping: false });
+            }, 2000); // Через 2 секунды после остановки печати, статус сбрасывается
+        });
+    });
+}function renderMessage(msgId, msg, roomId, myId, container) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received');
+    wrapper.id = 'msg_wrap_' + msgId;
+    
+    const newMessage = document.createElement('div');
+    newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
+    
+    let replyHTML = '';
+    if (msg.replyTo) {
+        replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
     }
+    
+    let senderHTML = '';
+    if (msg.userId !== myId && msg.username) {
+        database.ref('users/' + msg.userId).once('value').then((uSnap) => {
+            const uData = uSnap.val();
+            let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
+            let avText = uData && uData.avatarUrl ? '' : (msg.username[0].toUpperCase());
+            let avBlock = `<div class="sender-avatar" style="${avStyle}">${avText}</div>`;
+            
+            const senderInfo = document.createElement('div');
+            senderInfo.className = 'sender-info';
+            senderInfo.innerHTML = `${avBlock}<span class="sender-name">${msg.username}</span>`;
+            wrapper.insertBefore(senderInfo, newMessage);
+        });
+    }
+    
+    newMessage.innerHTML = replyHTML + `<div>${msg.text}</div>`;
+    wrapper.appendChild(newMessage);
+
+    if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
+        viewedMessages.push(msgId);
+        localStorage.setItem(`viewed_${myId}_${roomId}`, JSON.stringify(viewedMessages));
+        database.ref(`chats/${roomId}/${msgId}/views`).transaction((v) => (v || 0) + 1);
+    }
+
+    let viewsHTML = '';
+    if (roomId.startsWith('ch_')) {
+        viewsHTML = `<div class="views-count">👁️ <span id="views_${msgId}">${msg.views || 0}</span></div>`;
+    }
+    
+    const reactionsDiv = document.createElement('div');
+    reactionsDiv.id = 'reactions_' + msgId;
+    reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {});
+    
+    let actionBtn = `<button class="msg-btn" onclick="setReply('${msgId}')">↩️</button>`;
+    let reactBtns = `<button class="msg-btn" onclick="toggleReaction('${roomId}', '${msgId}', '👍')">👍</button>
+                     <button class="msg-btn" onclick="toggleReaction('${roomId}', '${msgId}', '🔥')">🔥</button>`;
+    let deleteBtn = (msg.userId === myId) ? `<button class="msg-btn" onclick="deleteMessage('${roomId}', '${msgId}')">🗑️</button>` : '';
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'msg-actions';
+    actionsDiv.innerHTML = `${actionBtn} ${reactBtns} ${deleteBtn}`;
+
+    wrapper.appendChild(reactionsDiv);
+    wrapper.appendChild(actionsDiv);
+    if (viewsHTML) { wrapper.insertAdjacentHTML('beforeend', viewsHTML); }
+
+    container.appendChild(wrapper);
 }
 
 function getReactionsHTML(reactions) {
@@ -459,6 +488,8 @@ function sendMessage() {
 
             database.ref('chats/' + currentRoomId).push(msgData).then(() => {
                 input.value = ""; cancelReply(); input.focus();
+                database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false });
+                clearTimeout(typingTimeout);
                 
                 if (currentRoomId !== 'global') {
                     database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
