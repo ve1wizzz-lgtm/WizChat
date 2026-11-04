@@ -63,7 +63,8 @@ html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;
 .message.sent { background-color: var(--msg-sent-bg); border-bottom-right-radius: 2px; color: white; }
 .message-image { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
 .msg-time { font-size: 10px; color: #a0b0c0; float: right; margin-top: 5px; margin-left: 10px; }
-.msg-reply-block { background: rgba(0,0,0,0.2); border-left: 3px solid #4fc3f7; padding: 5px 8px; margin-bottom: 5px; border-radius: 5px; font-size: 13px; }
+.msg-reply-block { background: rgba(0,0,0,0.2); border-left: 3px solid #4fc3f7; padding: 5px 8px; margin-bottom: 5px; border-radius: 5px; font-size: 13px; cursor: pointer; }
+.msg-reply-block:hover { background: rgba(0,0,0,0.3); }
 .msg-reply-name { color: #4fc3f7; font-weight: bold; display: block; }
 .msg-reply-text { color: #aaa; font-style: italic; }
 .sender-info { display: flex; align-items: center; margin-bottom: 5px; }
@@ -136,3 +137,5 @@ input:checked + .slider { background-color: #2ecc71; }
 input:checked + .slider:before { transform: translateX(20px); }
 @keyframes flyOut { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--x), var(--y)) scale(0.5); opacity: 0; } }
 .reaction-particle { position: fixed; font-size: 26px; pointer-events: none; z-index: 9999; animation: flyOut 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+@keyframes flash { 0% { background-color: rgba(79, 195, 247, 0.5); } 100% { background-color: transparent; } }
+.highlight-msg { animation: flash 1.5s ease-out; border-radius: 10px; }
