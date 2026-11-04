@@ -74,6 +74,7 @@ function openProfileModal() {
     const leaveBtn = document.getElementById('leaveChannelBtn');
 
     name.textContent = "Загрузка..."; modal.style.display = 'flex'; leaveBtn.style.display = 'none';
+    av.style.backgroundImage = 'none';
 
     if (currentRoomId.startsWith('ch_')) {
         currentProfileChannelId = currentRoomId;
@@ -93,6 +94,9 @@ function openProfileModal() {
             if(data) {
                 name.textContent = data.displayName || data.username; uname.textContent = '@' + data.username;
                 av.textContent = data.avatar || data.username[0].toUpperCase(); av.style.background = '#4fc3f7';
+                if(data.avatarUrl) {
+                    av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent';
+                }
                 subs.textContent = "Пользователь";
             }
         });
@@ -177,10 +181,7 @@ auth.onAuthStateChanged((user) => {
     if (user) {
         document.getElementById('authScreen').style.display = 'none'; 
         document.getElementById('mainApp').style.display = 'flex';
-        
-        // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Принудительно показываем нижнюю панель
-        document.getElementById('bottomNav').style.display = 'flex';
-        
+        document.getElementById('bottomNav').style.display = 'flex'; // Принудительно показываем панель
         localStorage.setItem('myUserId', user.uid); 
         loadChat('global', 'Общий чат'); 
         loadMyChatsList(); 
@@ -199,9 +200,20 @@ function loadProfile() {
         if(data) {
             document.getElementById('profileDisplayName').textContent = data.displayName || data.username;
             document.getElementById('profileUsername').textContent = '@' + data.username;
-            document.getElementById('profileAvatar').textContent = data.avatar || data.username[0].toUpperCase();
             document.getElementById('newDisplayName').value = data.displayName || data.username;
             document.getElementById('newAvatarText').value = data.avatar || data.username[0].toUpperCase();
+            document.getElementById('newAvatarUrl').value = data.avatarUrl || '';
+            
+            const profAvatar = document.getElementById('profileAvatar');
+            if(data.avatarUrl) {
+                profAvatar.textContent = '';
+                profAvatar.style.backgroundImage = `url(${data.avatarUrl})`;
+                profAvatar.style.backgroundColor = 'transparent';
+            } else {
+                profAvatar.style.backgroundImage = 'none';
+                profAvatar.textContent = data.avatar || data.username[0].toUpperCase();
+                profAvatar.style.backgroundColor = '#4fc3f7';
+            }
         }
     });
 }
@@ -210,8 +222,15 @@ function saveProfile() {
     const myId = localStorage.getItem('myUserId');
     const newName = document.getElementById('newDisplayName').value.trim();
     const newAvatar = document.getElementById('newAvatarText').value.trim();
-    if(!newName || !newAvatar) return alert("Заполни все поля!");
-    database.ref('users/' + myId).update({ displayName: newName, avatar: newAvatar }).then(() => alert("Сохранено!"));
+    const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
+    
+    if(!newName) return alert("Введите имя!");
+    
+    database.ref('users/' + myId).update({ 
+        displayName: newName, 
+        avatar: newAvatar || newName[0].toUpperCase(),
+        avatarUrl: newAvatarUrl
+    }).then(() => alert("Профиль обновлен!"));
 }
 
 function liveSearch() {
@@ -226,7 +245,9 @@ function liveSearch() {
             const user = child.val(); const uid = child.key;
             if (user.username.includes(searchName) && uid !== myId) {
                 found = true; const div = document.createElement('div'); div.className = 'search-user-item';
-                div.innerHTML = `<div class="avatar-placeholder">${user.avatar || user.username[0]}</div><div>👤 @${user.username}</div>`;
+                let avStyle = user.avatarUrl ? `background-image:url(${user.avatarUrl}); color:transparent;` : `background-color:#4fc3f7;`;
+                let avText = user.avatarUrl ? '' : (user.avatar || user.username[0]);
+                div.innerHTML = `<div class="avatar-placeholder" style="${avStyle}">${avText}</div><div>👤 @${user.username}</div>`;
                 div.onclick = () => startPrivateChat(uid, user.username); resultsDiv.appendChild(div);
             }
         });
@@ -361,9 +382,24 @@ function loadChat(roomId, title) {
         if (msg.replyTo) {
             replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
         }
-        let senderHTML = (msg.userId !== myId && msg.username) ? `<span class="sender-name">${msg.username}</span>` : '';
         
-        newMessage.innerHTML = replyHTML + senderHTML + `<div>${msg.text}</div>`;
+        let senderHTML = '';
+        if (msg.userId !== myId && msg.username) {
+            database.ref('users/' + msg.userId).once('value').then((uSnap) => {
+                const uData = uSnap.val();
+                let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
+                let avText = uData && uData.avatarUrl ? '' : (msg.username[0].toUpperCase());
+                let avBlock = `<div class="sender-avatar" style="${avStyle}">${avText}</div>`;
+                
+                // Вставляем аватарку и ник
+                const senderInfo = document.createElement('div');
+                senderInfo.className = 'sender-info';
+                senderInfo.innerHTML = `${avBlock}<span class="sender-name">${msg.username}</span>`;
+                wrapper.insertBefore(senderInfo, newMessage);
+            });
+        }
+        
+        newMessage.innerHTML = replyHTML + `<div>${msg.text}</div>`;
         wrapper.appendChild(newMessage);
 
         if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
