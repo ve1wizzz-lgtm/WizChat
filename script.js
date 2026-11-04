@@ -244,22 +244,128 @@ function leaveChannel() {
     });
 }
 
-function openProfileModal(targetUid = null) {
+// ЛОГИКА БЛОКИРОВКИ И ЖАЛОБ
+function toggleBlockUser() {
+    if (!currentProfileUid) return;
+    const myId = localStorage.getItem('myUserId');
+    const blockRef = database.ref(`users/${myId}/blocked/${currentProfileUid}`);
+    
+    blockRef.once('value').then(snap => {
+        if (snap.exists()) {
+            // Разблокировать
+            blockRef.remove().then(() => {
+                alert("Пользователь разблокирован.");
+                document.getElementById('blockUserBtn').textContent = "🚫 Заблокировать";
+                document.getElementById('blockUserBtn').style.background = "#e67e22";
+                document.getElementById('writeMessageBtn').style.display = 'block';
+                loadBlockedUsersList();
+            });
+        } else {
+            // Заблокировать
+            if(confirm("Вы уверены, что хотите заблокировать этого пользователя? Чат будет удален.")) {
+                blockRef.set(true).then(() => {
+                    // Удаляем чат у себя
+                    const roomId = currentRoomId; // Текущий открытый чат
+                    if(roomId && roomId !== 'global' && !roomId.startsWith('ch_')) {
+                        database.ref(`userChats/${myId}/${roomId}`).remove();
+                    }
+                    alert("Пользователь заблокирован, чат удален.");
+                    closeProfileModal();
+                    closeChat();
+                    loadBlockedUsersList();
+                });
+            }
+        }
+    });
+}
+
+function reportUser() {
+    if (!currentProfileUid) return;
+    const myId = localStorage.getItem('myUserId');
+    if(confirm("Отправить жалобу на этого пользователя? (100 жалоб = бан)")) {
+        const reportRef = database.ref(`users/${currentProfileUid}/reports`);
+        reportRef.transaction(currentReports => {
+            return (currentReports || 0) + 1;
+        }).then(() => {
+            alert("Жалоба отправлена.");
+            // Проверка на бан
+            reportRef.once('value').then(snap => {
+                if(snap.val() >= 100) {
+                    // Баним пользователя: удаляем его юзернейм и ставим метку
+                    database.ref(`users/${currentProfileUid}`).once('value').then(uSnap => {
+                        const uData = uSnap.val();
+                        if(uData && uData.username) {
+                            database.ref(`usernames/${uData.username}`).remove();
+                            database.ref(`users/${currentProfileUid}/banned`).set(true);
+                        }
+                    });
+                }
+            });
+        });
+    }
+}
+
+function loadBlockedUsersList() {
+    const myId = localStorage.getItem('myUserId');
+    const listDiv = document.getElementById('blockedList');
+    if(!listDiv) return;
+    listDiv.innerHTML = "Загрузка...";
+    
+    database.ref(`users/${myId}/blocked`).once('value').then(snap => {
+        listDiv.innerHTML = "";
+        if(!snap.exists()) {
+            listDiv.innerHTML = "<span style='color:gray;'>Нет заблокированных</span>";
+            return;
+        }
+        snap.forEach(child => {
+            const blockedUid = child.key;
+            database.ref(`users/${blockedUid}`).once('value').then(uSnap => {
+                const uData = uSnap.val();
+                if(uData) {
+                    const div = document.createElement('div');
+                    div.style.display = 'flex';
+                    div.style.justifyContent = 'space-between';
+                    div.style.alignItems = 'center';
+                    div.innerHTML = `
+                        <span>@${uData.username}</span>
+                        <button onclick="unblockFromSettings('${blockedUid}')" style="background:#2ecc71; border:none; padding:5px 10px; border-radius:5px; color:white; cursor:pointer;">Разблокировать</button>
+                    `;
+                    listDiv.appendChild(div);
+                }
+            });
+        });
+    });
+}
+
+function unblockFromSettings(uid) {
+    const myId = localStorage.getItem('myUserId');
+    database.ref(`users/${myId}/blocked/${uid}`).remove().then(() => {
+        loadBlockedUsersList();
+    });
+}function openProfileModal(targetUid = null) {
     if (!targetUid && currentRoomId === 'global') return;
     const modal = document.getElementById('profileModal');
     const av = document.getElementById('profAvatar');
     const name = document.getElementById('profName');
     const uname = document.getElementById('profUsername');
+    const bio = document.getElementById('profBio');
     const subs = document.getElementById('profSubs');
+    
     const leaveBtn = document.getElementById('leaveChannelBtn');
     const deleteChatBtn = document.getElementById('deleteChatBtn');
     const writeBtn = document.getElementById('writeMessageBtn');
+    const blockBtn = document.getElementById('blockUserBtn');
+    const reportBtn = document.getElementById('reportUserBtn');
     
     if(!modal) return;
     name.textContent = "Загрузка..."; modal.style.display = 'flex'; 
+    
     if(leaveBtn) leaveBtn.style.display = 'none';
     if(deleteChatBtn) deleteChatBtn.style.display = 'none';
     if(writeBtn) writeBtn.style.display = 'none';
+    if(blockBtn) blockBtn.style.display = 'none';
+    if(reportBtn) reportBtn.style.display = 'none';
+    bio.textContent = '';
     av.style.backgroundImage = 'none';
 
     if (targetUid) {
@@ -287,19 +393,32 @@ function openProfileModal(targetUid = null) {
             if(deleteChatBtn) deleteChatBtn.style.display = 'block';
         }
     }
-}function loadUserProfileInModal(uid) {
+}
+
+function loadUserProfileInModal(uid) {
     const av = document.getElementById('profAvatar');
     const name = document.getElementById('profName');
     const uname = document.getElementById('profUsername');
+    const bio = document.getElementById('profBio');
     const subs = document.getElementById('profSubs');
     const writeBtn = document.getElementById('writeMessageBtn');
+    const blockBtn = document.getElementById('blockUserBtn');
+    const reportBtn = document.getElementById('reportUserBtn');
     const myId = localStorage.getItem('myUserId');
 
     database.ref('users/' + uid).once('value').then((snap) => {
         const data = snap.val();
         if(data) {
+            if(data.banned) {
+                alert("Этот аккаунт заблокирован за нарушение правил.");
+                closeProfileModal();
+                return;
+            }
+
             name.textContent = data.displayName || data.username || "Без имени"; 
             uname.textContent = '@' + (data.username || "unknown");
+            bio.textContent = data.bio || "Описание не добавлено...";
+            
             if(data.avatarUrl) {
                 av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent';
             } else {
@@ -310,7 +429,29 @@ function openProfileModal(targetUid = null) {
                 if(status && status.state === 'online') subs.innerHTML = `Пользователь <span class="online-dot"></span>`;
                 else subs.textContent = "Пользователь (офлайн)";
             });
-            if (uid !== myId && writeBtn) { writeBtn.style.display = 'block'; }
+            
+            if (uid !== myId) {
+                if(writeBtn) writeBtn.style.display = 'block';
+                if(reportBtn) reportBtn.style.display = 'block';
+                
+                // Проверка на блокировку
+                database.ref(`users/${myId}/blocked/${uid}`).once('value').then(bSnap => {
+                    if(bSnap.exists()) {
+                        if(blockBtn) {
+                            blockBtn.style.display = 'block';
+                            blockBtn.textContent = "✅ Разблокировать";
+                            blockBtn.style.background = "#2ecc71";
+                        }
+                        if(writeBtn) writeBtn.style.display = 'none'; // Скрываем кнопку написать
+                    } else {
+                        if(blockBtn) {
+                            blockBtn.style.display = 'block';
+                            blockBtn.textContent = "🚫 Заблокировать";
+                            blockBtn.style.background = "#e67e22";
+                        }
+                    }
+                });
+            }
         }
     });
 }
@@ -332,9 +473,7 @@ function startChatFromProfile() {
             openChat(roomId, otherName, null);
         });
     });
-}
-
-function createChannel(btn) {
+}function createChannel(btn) {
     const name = document.getElementById('chName').value.trim();
     const username = document.getElementById('chUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     const isPrivate = document.getElementById('chPrivate').checked;
@@ -378,6 +517,7 @@ function switchTab(tabId, element) {
     const tab = document.getElementById('tab-' + tabId);
     if(tab) tab.classList.add('active'); 
     if(element) element.classList.add('active');
+    if(tabId === 'settings') loadBlockedUsersList();
 }
 
 function applySettings() {
@@ -427,7 +567,9 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('mainApp').style.display = 'none';
         localStorage.removeItem('myUserId');
     }
-});function loadProfile() {
+});
+
+function loadProfile() {
     const myId = localStorage.getItem('myUserId');
     database.ref('users/' + myId).on('value', (snapshot) => {
         const data = snapshot.val();
@@ -436,6 +578,7 @@ auth.onAuthStateChanged((user) => {
             document.getElementById('profileUsername').textContent = '@' + data.username;
             document.getElementById('newDisplayName').value = data.displayName || data.username;
             document.getElementById('newAvatarUrl').value = data.avatarUrl || '';
+            document.getElementById('newBio').value = data.bio || '';
             const profAvatar = document.getElementById('profileAvatar');
             if(data.avatarUrl) {
                 profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${data.avatarUrl})`; profAvatar.style.backgroundColor = 'transparent';
@@ -449,10 +592,11 @@ auth.onAuthStateChanged((user) => {
 function saveProfile() {
     const myId = localStorage.getItem('myUserId');
     const newName = document.getElementById('newDisplayName').value.trim();
+    const newBio = document.getElementById('newBio').value.trim();
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
     if(!newName) return alert("Введите имя!");
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
-    database.ref('users/' + myId).update({ displayName: newName, avatarUrl: finalAvatar }).then(() => {
+    database.ref('users/' + myId).update({ displayName: newName, bio: newBio, avatarUrl: finalAvatar }).then(() => {
         database.ref(`userChats/${myId}`).once('value').then(snap => {
             snap.forEach(child => {
                 const roomId = child.key;
@@ -464,9 +608,7 @@ function saveProfile() {
         });
         alert("Профиль обновлен!"); tempAvatarBase64 = null; 
     });
-}
-
-function liveSearch() {
+}function liveSearch() {
     const searchName = document.getElementById('searchInput').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('searchResults');
     const myId = localStorage.getItem('myUserId');
@@ -707,21 +849,37 @@ function sendMessage() {
             const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const myAvatar = myData ? myData.avatarUrl : null;
             const msgData = { text: text, userId: myId, username: myName, timestamp: Date.now(), views: 0 };
             if (activeReplyContext) msgData.replyTo = activeReplyContext;
-            database.ref('chats/' + currentRoomId).push(msgData).then(() => {
-                input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
-                
-                if (currentRoomId !== 'global') {
-                    database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
-                    if (!currentRoomId.startsWith('ch_')) {
-                        const otherUid = currentRoomId.split('_').find(id => id !== myId);
-                        if(otherUid) {
-                            const otherChatRef = database.ref(`userChats/${otherUid}/${currentRoomId}`);
-                            otherChatRef.update({ username: myName, avatarUrl: myAvatar, lastMessage: text });
-                            otherChatRef.child('unreadCount').transaction((count) => (count || 0) + 1);
+            
+            if (currentRoomId !== 'global' && !currentRoomId.startsWith('ch_')) {
+                const otherUid = currentRoomId.split('_').find(id => id !== myId);
+                database.ref(`users/${otherUid}/blocked/${myId}`).once('value').then(bSnap => {
+                    if (bSnap.exists()) {
+                        alert("Вы не можете отправить сообщение. Пользователь заблокировал вас.");
+                        return;
+                    }
+                    pushMessage();
+                });
+            } else {
+                pushMessage();
+            }
+            
+            function pushMessage() {
+                database.ref('chats/' + currentRoomId).push(msgData).then(() => {
+                    input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
+                    
+                    if (currentRoomId !== 'global') {
+                        database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
+                        if (!currentRoomId.startsWith('ch_')) {
+                            const otherUid = currentRoomId.split('_').find(id => id !== myId);
+                            if(otherUid) {
+                                const otherChatRef = database.ref(`userChats/${otherUid}/${currentRoomId}`);
+                                otherChatRef.update({ username: myName, avatarUrl: myAvatar, lastMessage: text });
+                                otherChatRef.child('unreadCount').transaction((count) => (count || 0) + 1);
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         });
     }
 }
