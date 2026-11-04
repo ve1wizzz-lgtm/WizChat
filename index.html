@@ -22,7 +22,6 @@
         <div class="context-actions" id="contextActions"></div>
     </div>
 
-    <!-- Окно для всех реакций -->
     <div class="modal-overlay" id="fullReactionsModal" style="display: none; z-index: 1000;">
         <div class="modal-content" style="padding: 15px;">
             <h3 style="margin-bottom: 15px;">Выберите реакцию</h3>
@@ -106,8 +105,14 @@
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
                 <p id="profUsername" style="color: #4fc3f7; margin-bottom: 15px; font-size: 16px;">@...</p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
+                
+                <!-- Кнопка написать сообщение -->
+                <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
+
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Очистить историю чата</button>
+                
                 <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; display: none; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
+                
                 <button onclick="closeProfileModal()" style="background: var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
