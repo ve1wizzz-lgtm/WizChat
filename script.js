@@ -22,6 +22,22 @@ let typingTimeout;
 let tempAvatarBase64 = null;
 let previousUnread = {}; 
 
+// --- СИСТЕМА ОНЛАЙН-СТАТУСА ---
+const userStatusDatabaseRef = database.ref('/status');
+
+function setupOnlineStatus(uid) {
+    const isOfflineForDatabase = { state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP };
+    const isOnlineForDatabase = { state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP };
+    const userRef = database.ref('/status/' + uid);
+
+    database.ref('.info/connected').on('value', (snapshot) => {
+        if (snapshot.val() == false) return;
+        userRef.onDisconnect().set(isOfflineForDatabase).then(() => {
+            userRef.set(isOnlineForDatabase);
+        });
+    });
+}
+
 // Загрузка фото с телефона
 document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
@@ -52,7 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// ЕДИНСТВЕННЫЙ слушатель ввода текста (защита от дублей)
 document.getElementById('msgInput').addEventListener('input', () => {
     const myId = localStorage.getItem('myUserId');
     if (!myId || !currentRoomId) return;
@@ -60,7 +75,6 @@ document.getElementById('msgInput').addEventListener('input', () => {
     database.ref(`users/${myId}`).once('value').then(uSnap => {
         const myData = uSnap.val();
         const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; 
-        
         database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: true, name: myName });
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => {
@@ -101,11 +115,20 @@ function deleteMessage(roomId, msgId) {
     }
 }
 
+// --- УДАЛЕНИЕ ЧАТА ИЗ СПИСКА ---
+function deleteChat(roomId) {
+    if(confirm("Удалить этот чат из списка?")) {
+        const myId = localStorage.getItem('myUserId');
+        database.ref(`userChats/${myId}/${roomId}`).remove().then(() => {
+            if(currentRoomId === roomId) closeChat();
+            loadMyChatsList();
+        });
+    }
+}
+
 function openCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
 function closeCreateModal() { document.getElementById('createModal').style.display = 'none'; }
-function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }
-
-function leaveChannel() {
+function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }function leaveChannel() {
     const myId = localStorage.getItem('myUserId');
     if(!currentProfileChannelId) return;
     if(!confirm("Вы уверены, что хотите отписаться?")) return;
@@ -113,7 +136,9 @@ function leaveChannel() {
         database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
     });
-}function openProfileModal() {
+}
+
+function openProfileModal() {
     if (currentRoomId === 'global') return;
     const modal = document.getElementById('profileModal');
     const av = document.getElementById('profAvatar');
@@ -236,6 +261,9 @@ auth.onAuthStateChanged((user) => {
         document.getElementById('mainApp').style.display = 'flex';
         document.getElementById('bottomNav').style.display = 'flex'; 
         localStorage.setItem('myUserId', user.uid); 
+        
+        setupOnlineStatus(user.uid); // Включаем онлайн-статус
+        
         loadChat('global', 'Общий чат'); 
         loadMyChatsList(); 
         loadProfile(); 
@@ -392,6 +420,9 @@ function loadMyChatsList() {
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
                 let avText = data.avatarUrl ? '' : (isChannel ? '#' : data.username[0].toUpperCase());
                 
+                // Кнопка удаления чата (кроме каналов и общего чата)
+                let deleteBtnHTML = (!isChannel) ? `<button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${roomId}')">🗑️</button>` : '';
+
                 div.innerHTML = `
                     <div class="avatar-placeholder" style="${avStyle}">${avText}</div>
                     <div class="chat-info">
@@ -401,6 +432,7 @@ function loadMyChatsList() {
                         </div>
                         <div class="chat-last-msg">${previewText}</div>
                     </div>
+                    ${deleteBtnHTML}
                 `;
                 div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
             });
@@ -422,8 +454,9 @@ function openChat(roomId, title, element) {
 
 function closeChat() {
     document.getElementById('chatArea').classList.remove('active');
+    if (currentRoomRef) { currentRoomRef.off(); }
+    if (currentTypingRef) { currentTypingRef.off(); }
     currentRoomId = 'global'; 
-    if (currentTypingRef) { currentTypingRef.off(); } 
     loadMyChatsList(); 
     document.getElementById('bottomNav').style.display = 'flex';
 }
@@ -439,22 +472,47 @@ function loadChat(roomId, title) {
     
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
+    
+    let typingState = { name: "", isTyping: false };
+    let onlineState = false;
 
+    // ФУНКЦИЯ ОБНОВЛЕНИЯ ЗАГОЛОВКА ЧАТА (Онлайн + Печатает)
+    function updateTitle() {
+        const titleEl = document.getElementById('chatTitle');
+        if (typingState.isTyping) {
+            titleEl.textContent = `${typingState.name} печатает...`;
+        } else if (onlineState && roomId !== 'global' && !roomId.startsWith('ch_')) {
+            titleEl.innerHTML = `${title} <span class="online-dot"></span>`;
+        } else {
+            titleEl.textContent = title;
+        }
+    }
+
+    // Слушаем печатает
     currentTypingRef = database.ref('typing/' + roomId);
     currentTypingRef.on('value', (snap) => {
         const typingData = snap.val();
-        let someoneTyping = false;
-        let typingName = "";
+        typingState.isTyping = false;
         if (typingData) {
             for (const uid in typingData) {
                 if (uid !== myId && typingData[uid].isTyping) {
-                    someoneTyping = true;
-                    typingName = typingData[uid].name; 
+                    typingState.isTyping = true;
+                    typingState.name = typingData[uid].name; 
                 }
             }
         }
-        document.getElementById('chatTitle').textContent = someoneTyping ? `${typingName} печатает...` : title;
+        updateTitle();
     });
+
+    // Слушаем онлайн собеседника
+    if (roomId !== 'global' && !roomId.startsWith('ch_')) {
+        const otherUid = roomId.split('_').find(id => id !== myId);
+        database.ref('status/' + otherUid).on('value', (sSnap) => {
+            const status = sSnap.val();
+            onlineState = (status && status.state === 'online');
+            updateTitle();
+        });
+    }
 
     if (roomId.startsWith('ch_')) {
         database.ref('channels/' + roomId).once('value').then((snap) => {
@@ -471,7 +529,7 @@ function loadChat(roomId, title) {
     currentRoomRef.on('child_added', function(snapshot) {
         const msg = snapshot.val(); const msgId = snapshot.key;
         messagesCache[msgId] = msg; 
-        renderMessage(msgId, msg, roomId, myId, messagesContainer);
+        renderMessage(msgId, msg, roomId, myId, messagesContainer, viewedMessages);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         if (msg.userId !== myId && roomId !== 'global') { database.ref(`userChats/${myId}/${roomId}`).update({ unreadCount: 0 }); }
     });
@@ -491,7 +549,7 @@ function loadChat(roomId, title) {
     });
 }
 
-function renderMessage(msgId, msg, roomId, myId, container) {
+function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
     const wrapper = document.createElement('div');
     wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received');
     wrapper.id = 'msg_wrap_' + msgId;
@@ -503,6 +561,9 @@ function renderMessage(msgId, msg, roomId, myId, container) {
     if (msg.replyTo) {
         replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
     }
+    
+    // Время отправки
+    const timeString = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
     let senderHTML = '';
     if (msg.userId !== myId && msg.username) {
@@ -518,7 +579,7 @@ function renderMessage(msgId, msg, roomId, myId, container) {
         });
     }
     
-    newMessage.innerHTML = replyHTML + `<div>${msg.text}</div>`;
+    newMessage.innerHTML = replyHTML + `<div>${msg.text} <span class="msg-time">${timeString}</span></div>`;
     wrapper.appendChild(newMessage);
 
     if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
@@ -562,10 +623,15 @@ function getReactionsHTML(reactions) {
     return html;
 }
 
+// --- ОТПРАВКА СООБЩЕНИЯ С ОГРАНИЧЕНИЕМ ДЛИНЫ ---
 function sendMessage() {
     const input = document.getElementById('msgInput');
     const text = input.value;
     const myId = localStorage.getItem('myUserId');
+
+    if (text.length > 500) {
+        return alert("Сообщение слишком длинное! Максимум 500 символов.");
+    }
 
     if (text.trim() !== "" && myId) {
         database.ref('users/' + myId).once('value').then((snap) => {
