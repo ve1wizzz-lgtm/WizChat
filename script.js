@@ -15,7 +15,9 @@ function closeLightbox() { const lb = document.getElementById('imageLightbox'); 
 function openCreateModal() { showModal('choiceCreateModal'); }
 function setCreateType(type) { createType = type; hideModal('choiceCreateModal'); document.getElementById('chName').value = ''; document.getElementById('chUsername').value = ''; showModal('createModal'); }
 function closeCreateModal() { hideModal('createModal'); }
-function closeProfileModal() { hideModal('profileModal'); }document.addEventListener("DOMContentLoaded", () => {
+function closeProfileModal() { hideModal('profileModal'); }
+
+document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
     if(uploadInput) {
         uploadInput.addEventListener('change', function(e) {
@@ -78,15 +80,29 @@ document.getElementById('msgInput').addEventListener('input', () => {
     database.ref(`users/${myId}`).once('value').then(uSnap => { const myData = uSnap.val(); const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: true, name: myName }); clearTimeout(typingTimeout); typingTimeout = setTimeout(() => { database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); }, 2000); });
 });
 function spawnReactionEffect(event, emoji) { if(!event) return; const x = event.clientX || (event.touches && event.touches[0].clientX) || 0; const y = event.clientY || (event.touches && event.touches[0].clientY) || 0; for(let i=0; i<5; i++) { const p = document.createElement('div'); p.className = 'reaction-particle'; p.textContent = emoji; p.style.left = x + 'px'; p.style.top = y + 'px'; const angle = Math.random() * Math.PI * 2; const distance = 40 + Math.random() * 60; p.style.setProperty('--x', Math.cos(angle) * distance + 'px'); p.style.setProperty('--y', Math.sin(angle) * distance + 'px'); document.body.appendChild(p); setTimeout(() => p.remove(), 600); } }
-function showMessageActions(event, msgId, isMine) {
-    if(event) event.stopPropagation(); const msg = messagesCache[msgId]; if(!msg) return; currentMenuMsgId = msgId; clearTimeout(menuCloseTimeout);
+function showMessageActions(msgId, isMine) {
+    const msg = messagesCache[msgId]; if(!msg) return;
+    currentMenuMsgId = msgId; clearTimeout(menuCloseTimeout);
     const overlay = document.getElementById('menuOverlay'); const menu = document.getElementById('msgContextMenu');
-    if(overlay) { overlay.style.display = 'block'; setTimeout(() => overlay.classList.add('show'), 10); } if(menu) { menu.style.display = 'flex'; setTimeout(() => menu.classList.add('show'), 10); }
-    const rect = event.target.getBoundingClientRect ? event.target.getBoundingClientRect() : { left: 50, top: 50 };
-    if(menu) { menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px'; menu.style.top = Math.max(10, rect.top - 120) + 'px'; }
+    if(overlay) { overlay.style.display = 'block'; setTimeout(() => overlay.classList.add('show'), 10); } 
+    if(menu) { menu.style.display = 'flex'; setTimeout(() => menu.classList.add('show'), 10); }
+    
+    const msgWrap = document.getElementById('msg_wrap_' + msgId);
+    if (msgWrap && menu) {
+        const rect = msgWrap.getBoundingClientRect();
+        let leftPos = rect.left;
+        let topPos = rect.top - 180;
+        if (topPos < 10) { topPos = rect.bottom + 10; }
+        if (leftPos + 200 > window.innerWidth) { leftPos = window.innerWidth - 210; }
+        if (leftPos < 10) { leftPos = 10; }
+        menu.style.left = leftPos + 'px';
+        menu.style.top = topPos + 'px';
+    }
+
     const quickReacts = ['❤️', '👍', '🔥', '😂', '😢']; let reactHTML = `<div class="reaction-list-5">`;
     quickReacts.forEach(e => { reactHTML += `<button onclick="toggleReaction(event, '${currentRoomId}', '${msgId}', '${e}'); closeContextMenu();">${e}</button>`; }); reactHTML += `</div><button class="btn-more-reactions" onclick="openFullReactions('${msgId}')">»</button>`;
     const reactionsDiv = document.getElementById('contextReactions'); if(reactionsDiv) reactionsDiv.innerHTML = reactHTML;
+    
     const actionsDiv = document.getElementById('contextActions');
     if(actionsDiv) {
         actionsDiv.innerHTML = `<button onclick="setReply('${msgId}'); closeContextMenu();">↩️ Ответить</button>`;
@@ -98,10 +114,7 @@ function showMessageActions(event, msgId, isMine) {
         if (isMine && !msg.image && !msg.audio) { actionsDiv.innerHTML += `<button onclick="editMessage('${msgId}'); closeContextMenu();">✏️ Изменить</button>`; }
     }
 }
-function copyMessage(msgId) {
-    const msg = messagesCache[msgId]; if(!msg) return;
-    navigator.clipboard.writeText(msg.text).then(() => alert("Текст скопирован!")).catch(() => alert("Ошибка копирования"));
-}function openForwardModal(msgId) {
+function copyMessage(msgId) { const msg = messagesCache[msgId]; if(!msg) return; navigator.clipboard.writeText(msg.text).then(() => alert("Текст скопирован!")).catch(() => alert("Ошибка копирования")); }function openForwardModal(msgId) {
     const msg = messagesCache[msgId]; if(!msg) return;
     forwardMsgData = { text: msg.text, image: msg.image || null, audio: msg.audio || null, isForwarded: true };
     showModal('forwardModal');
@@ -248,11 +261,11 @@ function joinChannelByCode() {
     const code = document.getElementById('joinCode').value.trim(); const myId = localStorage.getItem('myUserId'); if (!code) return alert("Введи код!");
     const joinProcess = (dbRef, isGroup) => { database.ref(dbRef).orderByChild('inviteCode').equalTo(code).once('value', (snapshot) => { if (snapshot.exists()) { snapshot.forEach((child) => { const id = child.key; const data = child.val(); if (isGroup) database.ref(`groups/${id}/members/${myId}`).set(true); else { database.ref(`channels/${id}/subscribersList/${myId}`).set(true); database.ref(`channels/${id}/subscribers`).transaction(s => (s||0)+1); } database.ref(`userChats/${myId}/${id}`).set({ username: data.name, lastMessage: "Вы вошли", unreadCount: 0 }).then(() => { alert("Успешно!"); closeCreateModal(); loadMyChatsList(); openChat(id, data.name, null); }); }); } }); };
     database.ref('channels').orderByChild('inviteCode').equalTo(code).once('value').then(s => { if(s.exists()) joinProcess('channels', false); else joinProcess('groups', true); });
-}
-function switchTab(tabId, element) { document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active')); const tab = document.getElementById('tab-' + tabId); if(tab) tab.classList.add('active'); if(element) element.classList.add('active'); if(tabId === 'settings') loadBlockedUsersList(); if(tabId === 'profile') loadProfile(); }
+}function switchTab(tabId, element) { document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active')); const tab = document.getElementById('tab-' + tabId); if(tab) tab.classList.add('active'); if(element) element.classList.add('active'); if(tabId === 'settings') loadBlockedUsersList(); if(tabId === 'profile') loadProfile(); }
 function applySettings() { const theme = localStorage.getItem('appTheme'); if (theme === 'light') document.body.classList.add('light-theme'); else document.body.classList.remove('light-theme'); document.body.classList.remove('font-small', 'font-medium', 'font-large'); document.body.classList.add('font-' + (localStorage.getItem('msgFontSize') || 'medium')); }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
-function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }function registerUser() {
+function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
+function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase(); const password = document.getElementById('loginPassword').value;
     if (!username || username.length < 3) return alert("Юзернейм минимум 3 символа"); if (!password || password.length < 6) return alert("Пароль минимум 6 символов");
     const email = username + "@wizchat.com";
@@ -294,7 +307,8 @@ function loadMyChatsList() {
             div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
         }
     });
-}function liveSearch() {
+}
+function liveSearch() {
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
     const results = document.getElementById('searchResults');
     if (!results) return;
@@ -305,8 +319,7 @@ function loadMyChatsList() {
     database.ref('channels').once('value').then(snap => { snap.forEach(child => { const id = child.key; const ch = child.val(); if (ch.username && ch.username.toLowerCase().includes(query)) { const div = document.createElement('div'); div.className = 'search-user-item'; div.innerHTML = `<div class="avatar-placeholder" style="background:#e67e22; width:35px; height:35px; font-size:15px;">#</div><span>📢 ${ch.name} (@${ch.username})</span>`; div.onclick = () => { results.style.display = 'none'; openChat(id, ch.name, null); }; results.appendChild(div); count++; } }); });
     database.ref('groups').once('value').then(snap => { snap.forEach(child => { const id = child.key; const gr = child.val(); if (gr.username && gr.username.toLowerCase().includes(query)) { const div = document.createElement('div'); div.className = 'search-user-item'; div.innerHTML = `<div class="avatar-placeholder" style="background:#2ecc71; width:35px; height:35px; font-size:15px;">G</div><span>👥 ${gr.name} (@${gr.username})</span>`; div.onclick = () => { results.style.display = 'none'; openChat(id, gr.name, null); }; results.appendChild(div); count++; } }); });
     setTimeout(() => { if (count === 0 && results.innerHTML === '<div style="padding:10px; color:gray;">Ищем...</div>') { results.innerHTML = '<div style="padding:10px; color:gray;">Ничего не найдено</div>'; } }, 600);
-}
-function openChat(roomId, title, element) {
+}function openChat(roomId, title, element) {
     currentRoomId = roomId; cancelReply(); closeContextMenu(); closeFullReactions(); document.getElementById('emojiPanel').style.display = 'none'; document.getElementById('mentionPopup').style.display = 'none'; document.getElementById('chatSearchContainer').classList.remove('open');
     const chatList = document.getElementById('chatList'); if(chatList) { for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); } } if(element) element.classList.add('active'); else loadMyChatsList(); 
     if (roomId !== 'global') { database.ref(`userChats/${localStorage.getItem('myUserId')}/${roomId}`).update({ unreadCount: 0 }); }
@@ -316,7 +329,8 @@ function closeChat() {
     const cArea = document.getElementById('chatArea'); if(cArea) cArea.classList.remove('active');
     if (currentRoomRef) { currentRoomRef.off(); } if (currentTypingRef) { currentTypingRef.off(); } if (currentStatusRef) { currentStatusRef.off(); } if (currentBlockRef1) { currentBlockRef1.off(); currentBlockRef1 = null; } if (currentBlockRef2) { currentBlockRef2.off(); currentBlockRef2 = null; }
     currentRoomId = 'global'; loadMyChatsList(); const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'flex'; const fab = document.getElementById('fabCreate'); if(fab) fab.style.display = 'flex';
-}function loadChat(roomId, title) {
+}
+function loadChat(roomId, title) {
     const titleEl = document.getElementById('chatTitle'); if(titleEl) titleEl.textContent = title || 'Чат'; const messagesContainer = document.getElementById('messages'); if(messagesContainer) messagesContainer.innerHTML = ''; messagesCache = {}; 
     if (currentRoomRef) { currentRoomRef.off(); } if (currentTypingRef) { currentTypingRef.off(); } if (currentStatusRef) { currentStatusRef.off(); } if (currentBlockRef1) { currentBlockRef1.off(); currentBlockRef1 = null; } if (currentBlockRef2) { currentBlockRef2.off(); currentBlockRef2 = null; }
     const inputArea = document.getElementById('messageInputArea'); const blockedBanner = document.getElementById('chatBlockedBanner'); const youBlockedBanner = document.getElementById('youAreBlockedBanner'); const myId = localStorage.getItem('myUserId'); let typingState = { name: "", isTyping: false }; let onlineState = false;
@@ -342,9 +356,8 @@ function closeChat() {
     if(!container) return; if (msg.type === 'system') { const sysDiv = document.createElement('div'); sysDiv.style.textAlign = 'center'; sysDiv.style.color = '#aaa'; sysDiv.style.fontSize = '12px'; sysDiv.style.margin = '10px 0'; sysDiv.textContent = msg.text; container.appendChild(sysDiv); return; }
     const wrapper = document.createElement('div'); wrapper.className = 'message-wrapper ' + ((msg.userId === myId) ? 'sent' : 'received'); wrapper.id = 'msg_wrap_' + msgId; const newMessage = document.createElement('div'); newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
     
-    // ЛОГИКА ДОЛГОГО НАЖАТИЯ
     let pressTimer;
-    const startPress = (e) => { pressTimer = setTimeout(() => { showMessageActions(e, msgId, msg.userId === myId); if (navigator.vibrate) navigator.vibrate(50); }, 500); };
+    const startPress = (e) => { pressTimer = setTimeout(() => { showMessageActions(msgId, msg.userId === myId); if (navigator.vibrate) navigator.vibrate(50); }, 500); };
     const cancelPress = () => { clearTimeout(pressTimer); };
     newMessage.addEventListener('touchstart', startPress); newMessage.addEventListener('touchend', cancelPress); newMessage.addEventListener('touchmove', cancelPress);
     newMessage.addEventListener('mousedown', startPress); newMessage.addEventListener('mouseup', cancelPress); newMessage.addEventListener('mouseleave', cancelPress);
