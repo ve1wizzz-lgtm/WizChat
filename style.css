@@ -1,8 +1,4 @@
-:root {
-    --bg-main: #0e1621; --bg-panel: #17212b; --bg-input: #242f3d;
-    --text-main: #ffffff; --text-muted: #7f91a4; --accent: #2b5278;
-    --msg-sent-bg: #2b5278; --msg-recv-bg: #182533; --chat-wallpaper: #0e1621;
-}
+:root { --bg-main: #0e1621; --bg-panel: #17212b; --bg-input: #242f3d; --text-main: #ffffff; --text-muted: #7f91a4; --accent: #2b5278; --msg-sent-bg: #2b5278; --msg-recv-bg: #182533; --chat-wallpaper: #0e1621; }
 .light-theme { --bg-main: #f0f2f5; --bg-panel: #ffffff; --bg-input: #e4e6eb; --text-main: #000000; --text-muted: #65676b; --accent: #0088cc; --msg-sent-bg: #e3f2fd; --msg-recv-bg: #ffffff; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
 html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background-color: var(--bg-main); color: var(--text-main); }
@@ -136,15 +132,5 @@ input:checked + .slider:before { transform: translateX(20px); }
 .reaction-particle { position: fixed; font-size: 26px; pointer-events: none; z-index: 9999; animation: flyOut 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
 @keyframes flash { 0% { background-color: rgba(79, 195, 247, 0.5); } 100% { background-color: transparent; } }
 .highlight-msg { animation: flash 1.5s ease-out; border-radius: 10px; }
-
-/* НОВАЯ АНИМАЦИЯ ПРОФИЛЯ */
-#profileModal .modal-content {
-    transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-}
-#profileModal.show .modal-content {
-    transform: translateY(0);
-}
-#profBanner {
-    background-image: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop');
-}
+#profileModal .modal-content { transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important; }
+#profileModal.show .modal-content { transform: translateY(0); }
