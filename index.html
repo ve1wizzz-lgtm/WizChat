@@ -63,68 +63,66 @@
                 <div class="header" style="padding: 15px;">Мои чаты</div>
                 <div class="chat-list" id="chatList"></div>
             </div>
-        </div>        <div class="tab-content" id="tab-settings">
-            <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
-            <div class="settings-group">
-                <h3>Тема</h3>
-                <div class="theme-buttons">
-                    <button onclick="changeTheme('dark')">Темная</button>
-                    <button onclick="changeTheme('light')">Светлая</button>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3>Размер текста</h3>
-                <div class="theme-buttons">
-                    <button onclick="changeFontSize('small')">Маленький</button>
-                    <button onclick="changeFontSize('medium')">Средний</button>
-                    <button onclick="changeFontSize('large')">Большой</button>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3>Приватность</h3>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <span style="color:var(--text-main);">Приватный аккаунт</span>
-                    <label class="switch"><input type="checkbox" id="privateAccountToggle" onchange="togglePrivateAccount()"><span class="slider"></span></label>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:var(--text-main); font-size: 14px;">Запретить писать первыми</span>
-                    <label class="switch"><input type="checkbox" id="forbidFirstMsgToggle" onchange="toggleForbidFirstMsg()"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3>Заблокированные</h3>
-                <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
-            </div>
-            <div class="settings-group">
-                <h3>О разработчике</h3>
-                <a href="https://t.me/WizChatChannell" target="_blank" style="display:block; text-align:center; background:#2AABEE; color:white; padding:12px; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">🚀 Telegram-канал разработчика</a>
-            </div>
-            <div class="settings-group" style="margin-top: 10px;">
-                <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
-            </div>
+        </div><div class="tab-content" id="tab-settings">
+    <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
+    <div class="settings-group">
+        <h3>Тема</h3>
+        <div class="theme-buttons">
+            <button onclick="changeTheme('dark')">Темная</button>
+            <button onclick="changeTheme('light')">Светлая</button>
         </div>
+    </div>
+    <div class="settings-group">
+        <h3>Размер текста</h3>
+        <div class="theme-buttons">
+            <button onclick="changeFontSize('small')">Маленький</button>
+            <button onclick="changeFontSize('medium')">Средний</button>
+            <button onclick="changeFontSize('large')">Большой</button>
+        </div>
+    </div>
+    <div class="settings-group">
+        <h3>Приватность</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="color:var(--text-main);">Приватный аккаунт</span>
+            <label class="switch"><input type="checkbox" id="privateAccountToggle" onchange="togglePrivateAccount()"><span class="slider"></span></label>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-main); font-size: 14px;">Запретить писать первыми</span>
+            <label class="switch"><input type="checkbox" id="forbidFirstMsgToggle" onchange="toggleForbidFirstMsg()"><span class="slider"></span></label>
+        </div>
+    </div>
+    <div class="settings-group">
+        <h3>Заблокированные</h3>
+        <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
+    </div>
+    <div class="settings-group">
+        <h3>О разработчике</h3>
+        <a href="https://t.me/WizChatChannell" target="_blank" style="display:block; text-align:center; background:#2AABEE; color:white; padding:12px; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">🚀 Telegram-канал разработчика</a>
+    </div>
+    <div class="settings-group" style="margin-top: 10px;">
+        <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
+    </div>
+</div>
 
-        <div class="tab-content" id="tab-profile">
-            <div class="profile-header">
-                <div class="avatar-large" id="profileAvatar">V</div>
-                <div class="profile-name" id="profileDisplayName">Загрузка...</div>
-                <div class="profile-username" id="profileUsername">@...</div>
-            </div>
-            <div class="profile-settings">
-                <label>Имя (Никнейм)</label>
-                <input type="text" id="newDisplayName" placeholder="Введите имя">
-                <label>О себе (Описание)</label>
-                <textarea id="newBio" placeholder="Расскажите о себе..." style="padding: 12px; border-radius: 10px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; font-size: 16px; resize:none; height: 80px; font-family: sans-serif;"></textarea>
-                <label>Загрузить фото с телефона</label>
-                <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
-                <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
-                <label>Или вставьте ссылку на фото</label>
-                <input type="text" id="newAvatarUrl" placeholder="https://...">
-                <button onclick="saveProfile()">Сохранить профиль</button>
-            </div>
-        </div>
-        
-        <div class="modal-overlay" id="choiceCreateModal">
+<div class="tab-content" id="tab-profile">
+    <div class="profile-header">
+        <div class="avatar-large" id="profileAvatar">V</div>
+        <div class="profile-name" id="profileDisplayName">Загрузка...</div>
+        <div class="profile-username" id="profileUsername">@...</div>
+    </div>
+    <div class="profile-settings">
+        <label>Имя (Никнейм)</label>
+        <input type="text" id="newDisplayName" placeholder="Введите имя">
+        <label>О себе (Описание)</label>
+        <textarea id="newBio" placeholder="Расскажите о себе..." style="padding: 12px; border-radius: 10px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; font-size: 16px; resize:none; height: 80px; font-family: sans-serif;"></textarea>
+        <label>Загрузить фото с телефона</label>
+        <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+        <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
+        <label>Или вставьте ссылку на фото</label>
+        <input type="text" id="newAvatarUrl" placeholder="https://...">
+        <button onclick="saveProfile()">Сохранить профиль</button>
+    </div>
+</div>        <div class="modal-overlay" id="choiceCreateModal">
             <div class="modal-content" style="text-align: center;">
                 <h3>Что создадим?</h3>
                 <button onclick="setCreateType('channel')" style="background: #e67e22; margin-bottom: 10px;">📢 Создать канал</button>
@@ -149,23 +147,34 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="profileModal">
-            <div class="modal-content" style="text-align: center; padding: 30px 20px;">
-                <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; width: 100px; height: 100px; font-size: 40px;">#</div>
-                <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
-                <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px; font-size: 16px;">@...</p>
-                <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic; max-height: 80px; overflow-y: auto;"></p>
-                <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
-                <div id="muteSettingContainer" style="display:none; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 10px; margin-bottom: 15px;">
-                    <span style="color: var(--text-main); font-weight: bold;">Уведомления</span>
-                    <label class="switch"><input type="checkbox" id="muteToggle" onchange="toggleMuteChat()"><span class="slider"></span></label>
+        <!-- НОВЫЙ ПРОФИЛЬ (ШТОРКА) -->
+        <div class="modal-overlay" id="profileModal" style="align-items: flex-end;">
+            <div class="modal-content" id="profModalContent" style="padding: 0; max-width: 100%; height: 90vh; border-radius: 20px 20px 0 0; display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <div id="profBanner" style="height: 180px; width: 100%; background-color: #2b5278; background-size: cover; background-position: center; border-radius: 20px 20px 0 0; flex-shrink: 0; position: relative;">
+                    <button onclick="closeProfileModal()" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: none; color: white; width: 35px; height: 35px; border-radius: 50%; font-size: 18px; cursor: pointer; z-index: 10;">✖</button>
                 </div>
-                <button id="showMembersBtn" onclick="showMembersList()" style="background: #3498db; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">👥 Участники</button>
-                <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
-                <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
-                <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Удалить чат</button>
-                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Выйти</button>
-                <button onclick="closeProfileModal()" style="background: var(--bg-panel); border: 1px solid var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 0 20px; margin-top: -50px; margin-bottom: 15px;">
+                    <div class="avatar-large" id="profAvatar" style="width: 100px; height: 100px; font-size: 40px; border: 4px solid var(--bg-panel); background-color: #4fc3f7; margin-bottom: 0; z-index: 5;">#</div>
+                    <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; border-radius: 10px; padding: 10px 20px; border: none; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; display: none;">✍️ Написать</button>
+                </div>
+
+                <div style="padding: 0 20px 20px; flex: 1;">
+                    <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
+                    <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px; font-size: 16px;">@...</p>
+                    <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic;"></p>
+                    <p id="profSubs" style="color: var(--text-muted); margin-bottom: 20px;">0 подписчиков</p>
+                    
+                    <div id="muteSettingContainer" style="display:none; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <span style="color: var(--text-main); font-weight: bold;">Уведомления</span>
+                        <label class="switch"><input type="checkbox" id="muteToggle" onchange="toggleMuteChat()"><span class="slider"></span></label>
+                    </div>
+
+                    <button id="showMembersBtn" onclick="showMembersList()" style="background: #3498db; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 15px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">👥 Участники</button>
+                    <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 15px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">🚫 Заблокировать</button>
+                    <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 15px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">🗑️ Удалить чат</button>
+                    <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 15px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">Выйти</button>
+                </div>
             </div>
         </div>
 
