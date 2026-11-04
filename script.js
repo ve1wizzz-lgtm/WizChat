@@ -334,4 +334,52 @@ auth.onAuthStateChanged((user) => {
     if (user) { localStorage.setItem('myUserId', user.uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile(); } 
     else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
 });
+if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }function registerUser() {
+    const username = document.getElementById('loginUsername').value.trim().toLowerCase(); 
+    const password = document.getElementById('loginPassword').value;
+    if (!username || username.length < 3) return alert("Юзернейм минимум 3 символа"); 
+    if (!password || password.length < 6) return alert("Пароль минимум 6 символов");
+    const email = username + "@wizchat.com";
+    database.ref('usernames/' + username).once('value').then(snap => {
+        if (snap.exists()) return alert("Этот юзернейм уже занят!");
+        auth.createUserWithEmailAndPassword(email, password).then((userCredential) => {
+            const uid = userCredential.user.uid; 
+            database.ref('users/' + uid).set({ username: username, displayName: username, bio: "", avatarUrl: null }); 
+            database.ref('usernames/' + username).set({ type: 'user', id: uid }); 
+            alert("Регистрация успешна! Теперь войди.");
+        }).catch(err => alert("Ошибка: " + err.message));
+    });
+}
+
+function loginUser() {
+    const username = document.getElementById('loginUsername').value.trim().toLowerCase(); 
+    const password = document.getElementById('loginPassword').value;
+    if (!username || !password) return alert("Заполни все поля"); 
+    const email = username + "@wizchat.com";
+    auth.signInWithEmailAndPassword(email, password).then((userCredential) => {
+        const uid = userCredential.user.uid; 
+        localStorage.setItem('myUserId', uid); 
+        document.getElementById('authScreen').style.display = 'none'; 
+        document.getElementById('mainApp').style.display = 'flex'; 
+        setupOnlineStatus(uid); 
+        loadMyChatsList();
+    }).catch(err => alert("Ошибка входа: " + err.message));
+}
+
+applySettings();
+
+auth.onAuthStateChanged((user) => {
+    if (user) { 
+        localStorage.setItem('myUserId', user.uid); 
+        document.getElementById('authScreen').style.display = 'none'; 
+        document.getElementById('mainApp').style.display = 'flex'; 
+        setupOnlineStatus(user.uid); 
+        loadMyChatsList(); 
+        loadProfile(); 
+    } else { 
+        document.getElementById('authScreen').style.display = 'flex'; 
+        document.getElementById('mainApp').style.display = 'none'; 
+    }
+});
+
 if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }
