@@ -170,13 +170,23 @@ function toggleReaction(roomId, msgId, emoji) {
 }
 
 function deleteMessage(roomId, msgId) { if(confirm("Удалить сообщение для всех?")) database.ref(`chats/${roomId}/${msgId}`).remove(); }
+
+// УДАЛЕНИЕ ЧАТА (С полной очисткой истории)
 function deleteChatFromProfile() {
     if(currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
-    if(confirm("Удалить этот чат из вашего списка?")) {
+    if(confirm("Удалить этот чат из вашего списка? (Вся история переписки будет удалена)")) {
         const myId = localStorage.getItem('myUserId');
-        database.ref(`userChats/${myId}/${currentRoomId}`).remove().then(() => { closeProfileModal(); closeChat(); loadMyChatsList(); });
+        database.ref(`userChats/${myId}/${currentRoomId}`).remove().then(() => {
+            // Удаляем саму историю сообщений
+            database.ref(`chats/${currentRoomId}`).remove().then(() => {
+                closeProfileModal();
+                closeChat();
+                loadMyChatsList();
+            });
+        });
     }
 }
+
 function openCreateModal() { const m = document.getElementById('createModal'); if(m) m.style.display = 'flex'; }
 function closeCreateModal() { const m = document.getElementById('createModal'); if(m) m.style.display = 'none'; }
 function closeProfileModal() { const m = document.getElementById('profileModal'); if(m) m.style.display = 'none'; }function leaveChannel() {
@@ -201,7 +211,7 @@ function openProfileModal() {
     if(!modal) return;
     name.textContent = "Загрузка..."; modal.style.display = 'flex'; 
     if(leaveBtn) leaveBtn.style.display = 'none';
-    if(deleteChatBtn) deleteChatBtn.style.display = 'none';
+    if(deleteChatBtn) deleteChatBtn.style.display = 'none'; // Скрываем по умолчанию
     av.style.backgroundImage = 'none';
 
     if (currentRoomId.startsWith('ch_')) {
@@ -216,6 +226,7 @@ function openProfileModal() {
             }
         });
     } else {
+        // Показываем кнопку удаления для личных чатов
         if(deleteChatBtn) deleteChatBtn.style.display = 'block';
         const otherUid = currentRoomId.split('_').find(id => id !== localStorage.getItem('myUserId'));
         if(!otherUid) return;
@@ -358,24 +369,13 @@ function loadProfile() {
     if(!newName) return alert("Введите имя!");
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
     database.ref('users/' + myId).update({ displayName: newName, avatarUrl: finalAvatar }).then(() => {
+        // Обновляем имя во всех чатах у собеседников
         database.ref(`userChats/${myId}`).once('value').then(snap => {
             snap.forEach(child => {
                 const roomId = child.key;
                 if(!roomId.startsWith('ch_')) {
                     const otherUid = roomId.split('_').find(id => id !== myId);
                     if(otherUid) { database.ref(`userChats/${otherUid}/${roomId}`).update({ username: newName, avatarUrl: finalAvatar }); }
-                }
-            });
-        });
-        database.ref(`userChats/${myId}`).once('value').then(snap => {
-             snap.forEach(child => {
-                const roomId = child.key;
-                if(!roomId.startsWith('ch_')) {
-                    const otherUid = roomId.split('_').find(id => id !== myId);
-                    database.ref(`users/${otherUid}`).once('value').then(uSnap => {
-                        const uData = uSnap.val();
-                        if(uData) { database.ref(`userChats/${myId}/${roomId}`).update({ username: uData.displayName || uData.username, avatarUrl: uData.avatarUrl || '' }); }
-                    });
                 }
             });
         });
@@ -441,6 +441,7 @@ function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
     if(!chatList) return;
+    
     database.ref(`userChats/${myId}`).on('value', (snapshot) => {
         chatList.innerHTML = ''; 
         const globalDiv = document.createElement('div');
@@ -464,13 +465,17 @@ function loadMyChatsList() {
                 let badgeHTML = '';
                 if (data.unreadCount > 0 && currentRoomId !== roomId) { badgeHTML = `<div class="unread-badge">${data.unreadCount}</div>`; }
                 let previewText = data.lastMessage || ""; if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
-                const isChannel = roomId.startsWith('ch_'); const icon = isChannel ? '📢' : '@';
+                
+                const isChannel = roomId.startsWith('ch_'); 
+                const icon = isChannel ? '📢 ' : ''; // Убрали @ для личных чатов
+
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
                 let avText = data.avatarUrl ? '' : (isChannel ? '#' : (data.username ? data.username[0].toUpperCase() : '?'));
+                
                 div.innerHTML = `
                     <div class="avatar-placeholder" style="${avStyle}">${avText}</div>
                     <div class="chat-info">
-                        <div class="chat-top"><div class="chat-name">${icon} ${data.username || 'Без имени'}</div>${badgeHTML}</div>
+                        <div class="chat-top"><div class="chat-name">${icon}${data.username || 'Без имени'}</div>${badgeHTML}</div>
                         <div class="chat-last-msg">${previewText}</div>
                     </div>`;
                 div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
@@ -497,7 +502,9 @@ function closeChat() {
     if (currentStatusRef) { currentStatusRef.off(); } 
     currentRoomId = 'global'; loadMyChatsList(); 
     const bNav = document.getElementById('bottomNav'); if(bNav) bNav.style.display = 'flex';
-}function loadChat(roomId, title) {
+}
+
+function loadChat(roomId, title) {
     const titleEl = document.getElementById('chatTitle'); if(titleEl) titleEl.textContent = title || 'Чат';
     const messagesContainer = document.getElementById('messages'); if(messagesContainer) messagesContainer.innerHTML = ''; 
     messagesCache = {}; 
