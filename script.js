@@ -21,24 +21,23 @@ let messagesCache = {};
 let typingTimeout;
 let tempAvatarBase64 = null;
 let previousUnread = {}; 
+let currentMenuMsgId = null; // Для меню сообщений
 
 // --- СИСТЕМА ОНЛАЙН-СТАТУСА ---
-const userStatusDatabaseRef = database.ref('/status');
-
 function setupOnlineStatus(uid) {
-    const isOfflineForDatabase = { state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP };
-    const isOnlineForDatabase = { state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP };
+    const isOffline = { state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP };
+    const isOnline = { state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP };
     const userRef = database.ref('/status/' + uid);
 
     database.ref('.info/connected').on('value', (snapshot) => {
         if (snapshot.val() == false) return;
-        userRef.onDisconnect().set(isOfflineForDatabase).then(() => {
-            userRef.set(isOnlineForDatabase);
+        userRef.onDisconnect().set(isOffline).then(() => {
+            userRef.set(isOnline);
         });
     });
 }
 
-// Загрузка фото с телефона
+// Загрузка фото
 document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
     if(uploadInput) {
@@ -83,6 +82,79 @@ document.getElementById('msgInput').addEventListener('input', () => {
     });
 });
 
+// --- КОНТЕКСТНОЕ МЕНЮ СООБЩЕНИЙ ---
+function showMessageActions(event, msgId, isMine) {
+    event.stopPropagation(); // Чтобы не срабатывали другие клики
+    const msg = messagesCache[msgId];
+    if(!msg) return;
+    
+    currentMenuMsgId = msgId;
+    const menu = document.getElementById('msgContextMenu');
+    
+    // Позиционируем меню
+    const rect = event.target.getBoundingClientRect();
+    menu.style.display = 'flex';
+    menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+    menu.style.top = (rect.top - 100) + 'px'; // Чуть выше сообщения
+    
+    // Реакции
+    const reactionsDiv = document.getElementById('contextReactions');
+    reactionsDiv.innerHTML = `
+        <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '👍'); closeContextMenu();">👍</button>
+        <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '🔥'); closeContextMenu();">🔥</button>
+        <button onclick="toggleReaction('${currentRoomId}', '${msgId}', '❤️'); closeContextMenu();">❤️</button>
+    `;
+
+    // Кнопки действий
+    const actionsDiv = document.getElementById('contextActions');
+    actionsDiv.innerHTML = '';
+    
+    // Ответить доступно всем
+    actionsDiv.innerHTML += `<button onclick="setReply('${msgId}'); closeContextMenu();">↩️ Ответить</button>`;
+    
+    if (isMine) {
+        actionsDiv.innerHTML += `<button onclick="editMessage('${msgId}'); closeContextMenu();">✏️ Изменить</button>`;
+        actionsDiv.innerHTML += `<button class="red-btn" onclick="deleteMessage('${currentRoomId}', '${msgId}'); closeContextMenu();">🗑️ Удалить</button>`;
+    }
+}
+
+function closeContextMenu() {
+    document.getElementById('msgContextMenu').style.display = 'none';
+    currentMenuMsgId = null;
+}
+
+// Закрываем меню при клике в любое другое место
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.msg-context-menu')) closeContextMenu();
+});
+
+function editMessage(msgId) {
+    const msg = messagesCache[msgId];
+    if(!msg) return;
+    const newText = prompt("Изменить сообщение:", msg.text);
+    if (newText !== null && newText.trim() !== "" && newText !== msg.text) {
+        database.ref(`chats/${currentRoomId}/${msgId}`).update({ text: newText, edited: true });
+        
+        // Обновляем превью в списке чатов, если это последнее сообщение
+        const myId = localStorage.getItem('myUserId');
+        if(currentRoomId !== 'global') {
+            database.ref(`userChats/${myId}/${currentRoomId}`).once('value').then(s => {
+                if(s.val().lastMessage === msg.text) {
+                    database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: newText });
+                    if(!currentRoomId.startsWith('ch_')) {
+                        const otherUid = currentRoomId.split('_').find(id => id !== myId);
+                        database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then(os => {
+                            if(os.val().lastMessage === msg.text) {
+                                database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ lastMessage: newText });
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    }
+}
+
 function setReply(msgId) {
     const msg = messagesCache[msgId];
     if(!msg) return;
@@ -115,12 +187,14 @@ function deleteMessage(roomId, msgId) {
     }
 }
 
-// --- УДАЛЕНИЕ ЧАТА ИЗ СПИСКА ---
-function deleteChat(roomId) {
-    if(confirm("Удалить этот чат из списка?")) {
+// --- УДАЛЕНИЕ ЧАТА ИЗ ПРОФИЛЯ ---
+function deleteChatFromProfile() {
+    if(currentRoomId === 'global' || currentRoomId.startsWith('ch_')) return;
+    if(confirm("Удалить этот чат из вашего списка?")) {
         const myId = localStorage.getItem('myUserId');
-        database.ref(`userChats/${myId}/${roomId}`).remove().then(() => {
-            if(currentRoomId === roomId) closeChat();
+        database.ref(`userChats/${myId}/${currentRoomId}`).remove().then(() => {
+            closeProfileModal();
+            closeChat();
             loadMyChatsList();
         });
     }
@@ -146,8 +220,11 @@ function openProfileModal() {
     const uname = document.getElementById('profUsername');
     const subs = document.getElementById('profSubs');
     const leaveBtn = document.getElementById('leaveChannelBtn');
+    const deleteChatBtn = document.getElementById('deleteChatBtn');
 
-    name.textContent = "Загрузка..."; modal.style.display = 'flex'; leaveBtn.style.display = 'none';
+    name.textContent = "Загрузка..."; modal.style.display = 'flex'; 
+    leaveBtn.style.display = 'none';
+    deleteChatBtn.style.display = 'none';
     av.style.backgroundImage = 'none';
 
     if (currentRoomId.startsWith('ch_')) {
@@ -162,6 +239,7 @@ function openProfileModal() {
             }
         });
     } else {
+        deleteChatBtn.style.display = 'block'; // Показываем кнопку удаления для личных чатов
         const otherUid = currentRoomId.split('_').find(id => id !== localStorage.getItem('myUserId'));
         database.ref('users/' + otherUid).once('value').then((snap) => {
             const data = snap.val();
@@ -173,7 +251,16 @@ function openProfileModal() {
                 } else {
                     av.textContent = data.avatar || data.username[0].toUpperCase(); av.style.backgroundColor = '#4fc3f7';
                 }
-                subs.textContent = "Пользователь";
+                
+                // Проверяем онлайн статус
+                database.ref('status/' + otherUid).once('value').then(sSnap => {
+                    const status = sSnap.val();
+                    if(status && status.state === 'online') {
+                        subs.innerHTML = `Пользователь <span class="online-dot"></span>`;
+                    } else {
+                        subs.textContent = "Пользователь (офлайн)";
+                    }
+                });
             }
         });
     }
@@ -420,9 +507,6 @@ function loadMyChatsList() {
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
                 let avText = data.avatarUrl ? '' : (isChannel ? '#' : data.username[0].toUpperCase());
                 
-                // Кнопка удаления чата (кроме каналов и общего чата)
-                let deleteBtnHTML = (!isChannel) ? `<button class="delete-chat-btn" onclick="event.stopPropagation(); deleteChat('${roomId}')">🗑️</button>` : '';
-
                 div.innerHTML = `
                     <div class="avatar-placeholder" style="${avStyle}">${avText}</div>
                     <div class="chat-info">
@@ -432,7 +516,6 @@ function loadMyChatsList() {
                         </div>
                         <div class="chat-last-msg">${previewText}</div>
                     </div>
-                    ${deleteBtnHTML}
                 `;
                 div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
             });
@@ -443,6 +526,7 @@ function loadMyChatsList() {
 function openChat(roomId, title, element) {
     currentRoomId = roomId;
     cancelReply();
+    closeContextMenu();
     const chatList = document.getElementById('chatList');
     for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); }
     if(element) element.classList.add('active'); else loadMyChatsList(); 
@@ -476,7 +560,6 @@ function loadChat(roomId, title) {
     let typingState = { name: "", isTyping: false };
     let onlineState = false;
 
-    // ФУНКЦИЯ ОБНОВЛЕНИЯ ЗАГОЛОВКА ЧАТА (Онлайн + Печатает)
     function updateTitle() {
         const titleEl = document.getElementById('chatTitle');
         if (typingState.isTyping) {
@@ -488,7 +571,6 @@ function loadChat(roomId, title) {
         }
     }
 
-    // Слушаем печатает
     currentTypingRef = database.ref('typing/' + roomId);
     currentTypingRef.on('value', (snap) => {
         const typingData = snap.val();
@@ -504,7 +586,6 @@ function loadChat(roomId, title) {
         updateTitle();
     });
 
-    // Слушаем онлайн собеседника
     if (roomId !== 'global' && !roomId.startsWith('ch_')) {
         const otherUid = roomId.split('_').find(id => id !== myId);
         database.ref('status/' + otherUid).on('value', (sSnap) => {
@@ -546,6 +627,12 @@ function loadChat(roomId, title) {
         if (reactionsDiv) { reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {}); }
         const viewsSpan = document.getElementById('views_' + msgId);
         if(viewsSpan) viewsSpan.textContent = msg.views || 0;
+        
+        // Обновляем текст, если сообщение отредактировали
+        const textDiv = document.getElementById('text_' + msgId);
+        if(textDiv && msg.edited) {
+            textDiv.innerHTML = `${msg.text} <span style="font-size:10px; color:#aaa;">(изм.)</span> <span class="msg-time">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
+        }
     });
 }
 
@@ -557,12 +644,14 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
     const newMessage = document.createElement('div');
     newMessage.className = 'message ' + ((msg.userId === myId) ? 'sent' : 'received');
     
+    // Добавляем клик для меню
+    newMessage.onclick = function(e) { showMessageActions(e, msgId, msg.userId === myId); };
+    
     let replyHTML = '';
     if (msg.replyTo) {
         replyHTML = `<div class="msg-reply-block"><span class="msg-reply-name">${msg.replyTo.name}</span><span class="msg-reply-text">${msg.replyTo.text}</span></div>`;
     }
     
-    // Время отправки
     const timeString = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
     let senderHTML = '';
@@ -579,7 +668,8 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
         });
     }
     
-    newMessage.innerHTML = replyHTML + `<div>${msg.text} <span class="msg-time">${timeString}</span></div>`;
+    const editedMark = msg.edited ? `<span style="font-size:10px; color:#aaa;">(изм.)</span>` : '';
+    newMessage.innerHTML = replyHTML + `<div id="text_${msgId}">${msg.text} ${editedMark} <span class="msg-time">${timeString}</span></div>`;
     wrapper.appendChild(newMessage);
 
     if (roomId.startsWith('ch_') && msg.userId !== myId && !viewedMessages.includes(msgId)) {
@@ -596,18 +686,8 @@ function renderMessage(msgId, msg, roomId, myId, container, viewedMessages) {
     const reactionsDiv = document.createElement('div');
     reactionsDiv.id = 'reactions_' + msgId;
     reactionsDiv.innerHTML = getReactionsHTML(msg.reactions || {});
-    
-    let actionBtn = `<button class="msg-btn" onclick="setReply('${msgId}')">↩️</button>`;
-    let reactBtns = `<button class="msg-btn" onclick="toggleReaction('${roomId}', '${msgId}', '👍')">👍</button>
-                     <button class="msg-btn" onclick="toggleReaction('${roomId}', '${msgId}', '🔥')">🔥</button>`;
-    let deleteBtn = (msg.userId === myId) ? `<button class="msg-btn" onclick="deleteMessage('${roomId}', '${msgId}')">🗑️</button>` : '';
-
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'msg-actions';
-    actionsDiv.innerHTML = `${actionBtn} ${reactBtns} ${deleteBtn}`;
 
     wrapper.appendChild(reactionsDiv);
-    wrapper.appendChild(actionsDiv);
     if (viewsHTML) { wrapper.insertAdjacentHTML('beforeend', viewsHTML); }
 
     container.appendChild(wrapper);
@@ -617,13 +697,12 @@ function getReactionsHTML(reactions) {
     let html = '';
     for (const [emoji, users] of Object.entries(reactions)) {
         if (users.length > 0) {
-            html += `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px;">${emoji} ${users.length}</span>`;
+            html += `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 10px; font-size: 12px; margin-right: 5px; margin-top: 5px; display: inline-block;">${emoji} ${users.length}</span>`;
         }
     }
     return html;
 }
 
-// --- ОТПРАВКА СООБЩЕНИЯ С ОГРАНИЧЕНИЕМ ДЛИНЫ ---
 function sendMessage() {
     const input = document.getElementById('msgInput');
     const text = input.value;
