@@ -32,61 +32,57 @@
             <div class="full-reactions-grid" id="fullReactionsGrid"></div>
             <button onclick="closeFullReactions()" style="margin-top: 15px; background: var(--bg-input);">Закрыть</button>
         </div>
+    </div><div class="auth-screen" id="authScreen">
+    <h1>Вход в WizChat</h1>
+    <input type="text" id="loginUsername" placeholder="Юзернейм (на англ.)">
+    <input type="password" id="loginPassword" placeholder="Пароль (мин. 6 символов)">
+    <button onclick="registerUser()">Зарегистрироваться</button>
+    <button onclick="loginUser()">Войти</button>
+</div>
+
+<div class="app" id="mainApp" style="display: none;">
+    <div class="tab-content active" id="tab-chats">
+        <div class="sidebar">
+            <div class="search-wrapper">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Поиск..." oninput="liveSearch()">
+                    <button>🔍</button>
+                </div>
+                <div class="search-results" id="searchResults" style="display: none;"></div>
+            </div>
+            <div class="header" style="display: flex; justify-content: space-between; align-items: center; padding-right: 15px;">
+                Мои чаты
+                <button onclick="openCreateModal()" style="background: #2b5278; border: none; color: white; padding: 5px 10px; border-radius: 10px; cursor: pointer;">➕</button>
+            </div>
+            <div class="chat-list" id="chatList"></div>
+        </div>
     </div>
 
-    <div class="auth-screen" id="authScreen">
-        <h1>Вход в WizChat</h1>
-        <input type="text" id="loginUsername" placeholder="Юзернейм (на англ.)">
-        <input type="password" id="loginPassword" placeholder="Пароль (мин. 6 символов)">
-        <button onclick="registerUser()">Зарегистрироваться</button>
-        <button onclick="loginUser()">Войти</button>
-    </div>
-
-    <div class="app" id="mainApp" style="display: none;">
-        <div class="tab-content active" id="tab-chats">
-            <div class="sidebar">
-                <div class="search-wrapper">
-                    <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Поиск..." oninput="liveSearch()">
-                        <button>🔍</button>
-                    </div>
-                    <div class="search-results" id="searchResults" style="display: none;"></div>
-                </div>
-                <div class="header" style="display: flex; justify-content: space-between; align-items: center; padding-right: 15px;">
-                    Мои чаты
-                    <button onclick="openCreateModal()" style="background: #2b5278; border: none; color: white; padding: 5px 10px; border-radius: 10px; cursor: pointer;">➕</button>
-                </div>
-                <div class="chat-list" id="chatList"></div>
+    <div class="tab-content" id="tab-settings">
+        <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
+        <div class="settings-group">
+            <h3>Тема</h3>
+            <div class="theme-buttons">
+                <button onclick="changeTheme('dark')">Темная</button>
+                <button onclick="changeTheme('light')">Светлая</button>
             </div>
         </div>
-
-        <div class="tab-content" id="tab-settings">
-            <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
-            <div class="settings-group">
-                <h3>Тема</h3>
-                <div class="theme-buttons">
-                    <button onclick="changeTheme('dark')">Темная</button>
-                    <button onclick="changeTheme('light')">Светлая</button>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3>Размер текста</h3>
-                <div class="theme-buttons">
-                    <button onclick="changeFontSize('small')">Маленький</button>
-                    <button onclick="changeFontSize('medium')">Средний</button>
-                    <button onclick="changeFontSize('large')">Большой</button>
-                </div>
-            </div>
-            <div class="settings-group">
-                <h3>Заблокированные</h3>
-                <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
-            </div>
-            <div class="settings-group" style="margin-top: 10px;">
-                <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
+        <div class="settings-group">
+            <h3>Размер текста</h3>
+            <div class="theme-buttons">
+                <button onclick="changeFontSize('small')">Маленький</button>
+                <button onclick="changeFontSize('medium')">Средний</button>
+                <button onclick="changeFontSize('large')">Большой</button>
             </div>
         </div>
-
-        <div class="tab-content" id="tab-profile">
+        <div class="settings-group">
+            <h3>Заблокированные</h3>
+            <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
+        </div>
+        <div class="settings-group" style="margin-top: 10px;">
+            <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
+        </div>
+    </div>        <div class="tab-content" id="tab-profile">
             <div class="profile-header">
                 <div class="avatar-large" id="profileAvatar">V</div>
                 <div class="profile-name" id="profileDisplayName">Загрузка...</div>
@@ -113,22 +109,33 @@
                 <p id="profUsername" style="color: #4fc3f7; margin-bottom: 10px; font-size: 16px;">@...</p>
                 <p id="profBio" style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px; font-style: italic; max-height: 80px; overflow-y: auto;"></p>
                 <p id="profSubs" style="color: var(--text-muted); margin-bottom: 25px;">0 подписчиков</p>
+                
                 <div id="muteSettingContainer" style="display:none; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 12px 15px; border-radius: 10px; margin-bottom: 15px;">
                     <span style="color: var(--text-main); font-weight: bold;">Уведомления</span>
                     <label class="switch"><input type="checkbox" id="muteToggle" onchange="toggleMuteChat()"><span class="slider"></span></label>
                 </div>
+
+                <button id="showMembersBtn" onclick="showMembersList()" style="background: #3498db; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">👥 Участники</button>
                 <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
                 <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Удалить чат</button>
-                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Отписаться от канала</button>
+                <button id="leaveChannelBtn" onclick="leaveChannel()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">Выйти</button>
                 <button onclick="closeProfileModal()" style="background: var(--bg-panel); border: 1px solid var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="membersModal">
+            <div class="modal-content" style="padding: 15px;">
+                <h3 style="margin-bottom: 15px;" id="membersModalTitle">Участники</h3>
+                <div id="membersListContainer" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;"></div>
+                <button onclick="hideModal('membersModal')" style="margin-top: 15px; background: var(--bg-input); color: var(--text-main);">Закрыть</button>
             </div>
         </div>
 
         <div class="chat-area" id="chatArea">
             <div class="chat-header">
                 <span class="back-btn" onclick="closeChat()">←</span> 
-                <span id="chatTitle" onclick="openProfileModal()" style="cursor: pointer; flex:1;">Общий чат</span>
+                <span id="chatTitle" onclick="openProfileModal()" style="cursor: pointer; flex:1;">Чат</span>
                 <span class="search-chat-btn" onclick="toggleChatSearch()" style="cursor:pointer; font-size:20px;">🔍</span>
             </div>
             <div class="chat-search-container" id="chatSearchContainer">
@@ -148,7 +155,7 @@
                 <button onclick="unblockCurrentUser()" style="background: #2ecc71; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">Разблокировать</button>
             </div>
             <div id="youAreBlockedBanner" style="display:none; padding: 15px; text-align: center; background: var(--bg-panel); border-top: 1px solid var(--bg-input); color: var(--text-muted);">
-                Пользователь заблокировал вас. Вы не можете отправлять сообщения.
+                Пользователь заблокировал вас.
             </div>
 
             <div id="emojiPanel" class="emoji-panel" style="display: none;"></div>
@@ -172,13 +179,16 @@
 
         <div class="modal-overlay" id="createModal">
             <div class="modal-content">
-                <h3>Создать или войти</h3>
+                <h3>Создать</h3>
                 <input type="text" id="chName" placeholder="Название">
                 <input type="text" id="chUsername" placeholder="Юзернейм (на англ.)">
-                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:10px;">
                     <input type="checkbox" id="chPrivate" style="width:20px; margin:0;"> Приватный
                 </label>
-                <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать канал</button>
+                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                    <input type="checkbox" id="chIsGroup" style="width:20px; margin:0;"> Это группа (иначе - канал)
+                </label>
+                <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать</button>
                 <hr style="border-color: #242f3d; margin: 15px 0;">
                 <input type="text" id="joinCode" placeholder="Секретный код">
                 <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
