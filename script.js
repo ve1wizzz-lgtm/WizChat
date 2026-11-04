@@ -14,7 +14,7 @@ const auth = firebase.auth();
 
 let currentRoomId = 'global'; 
 let currentRoomRef = null; 
-let currentTypingRef = null; // ФИКС: Отдельная переменная для слушателя печати
+let currentTypingRef = null; 
 let currentProfileChannelId = null; 
 let activeReplyContext = null;
 let messagesCache = {}; 
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// ФИКС: Слушатель ввода текста теперь глобальный (не дублируется)
+// ЕДИНСТВЕННЫЙ слушатель ввода текста (защита от дублей)
 document.getElementById('msgInput').addEventListener('input', () => {
     const myId = localStorage.getItem('myUserId');
     if (!myId || !currentRoomId) return;
@@ -276,25 +276,16 @@ function loadProfile() {
     
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
     
-    database.ref('users/' + myId).update({ 
-        displayName: newName, 
-        avatarUrl: finalAvatar 
-    }).then(() => {
+    database.ref('users/' + myId).update({ displayName: newName, avatarUrl: finalAvatar }).then(() => {
         database.ref(`userChats/${myId}`).once('value').then(snap => {
             snap.forEach(child => {
                 const roomId = child.key;
                 if(!roomId.startsWith('ch_')) {
                     const otherUid = roomId.split('_').find(id => id !== myId);
-                    if(otherUid) {
-                        database.ref(`userChats/${otherUid}/${roomId}`).update({
-                            username: newName,
-                            avatarUrl: finalAvatar
-                        });
-                    }
+                    if(otherUid) { database.ref(`userChats/${otherUid}/${roomId}`).update({ username: newName, avatarUrl: finalAvatar }); }
                 }
             });
         });
-        
         database.ref(`userChats/${myId}`).once('value').then(snap => {
              snap.forEach(child => {
                 const roomId = child.key;
@@ -302,17 +293,11 @@ function loadProfile() {
                     const otherUid = roomId.split('_').find(id => id !== myId);
                     database.ref(`users/${otherUid}`).once('value').then(uSnap => {
                         const uData = uSnap.val();
-                        if(uData) {
-                            database.ref(`userChats/${myId}/${roomId}`).update({
-                                username: uData.displayName || uData.username,
-                                avatarUrl: uData.avatarUrl || ''
-                            });
-                        }
+                        if(uData) { database.ref(`userChats/${myId}/${roomId}`).update({ username: uData.displayName || uData.username, avatarUrl: uData.avatarUrl || '' }); }
                     });
                 }
             });
         });
-        
         alert("Профиль обновлен!");
         tempAvatarBase64 = null; 
     });
@@ -365,10 +350,8 @@ function startPrivateChat(otherUid, otherDisplayName) {
     database.ref('users/' + myId).once('value').then((snap) => {
         const myData = snap.val();
         const myUsername = myData.displayName || myData.username;
-        
         database.ref(`userChats/${myId}/${roomId}`).update({ username: otherDisplayName, lastMessage: "Чат создан", unreadCount: 0 });
         database.ref(`userChats/${otherUid}/${roomId}`).update({ username: myUsername, lastMessage: "Чат создан", unreadCount: 0 });
-        
         openChat(roomId, otherDisplayName, null);
         document.getElementById('searchInput').value = ''; document.getElementById('searchResults').style.display = 'none';
     });
@@ -392,7 +375,7 @@ function loadMyChatsList() {
                 if (data.unreadCount > 0 && currentRoomId !== roomId) {
                     if (previousUnread[roomId] !== data.unreadCount) {
                         const audio = document.getElementById('notifySound');
-                        if(audio) { audio.volume = 0.5; audio.play().catch(e => console.log("Звук заблокирован браузером")); }
+                        if(audio) { audio.volume = 0.5; audio.play().catch(e => console.log("Звук заблокирован")); }
                     }
                 }
                 previousUnread[roomId] = data.unreadCount;
@@ -401,16 +384,11 @@ function loadMyChatsList() {
                 div.className = currentRoomId === roomId ? 'chat-item active' : 'chat-item';
                 
                 let badgeHTML = '';
-                if (data.unreadCount > 0 && currentRoomId !== roomId) { 
-                    badgeHTML = `<div class="unread-badge">${data.unreadCount}</div>`; 
-                }
-                
-                let previewText = data.lastMessage || ""; 
-                if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
+                if (data.unreadCount > 0 && currentRoomId !== roomId) { badgeHTML = `<div class="unread-badge">${data.unreadCount}</div>`; }
+                let previewText = data.lastMessage || ""; if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
                 
                 const icon = roomId.startsWith('ch_') ? '📢' : '@';
                 const isChannel = roomId.startsWith('ch_');
-
                 let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
                 let avText = data.avatarUrl ? '' : (isChannel ? '#' : data.username[0].toUpperCase());
                 
@@ -445,7 +423,7 @@ function openChat(roomId, title, element) {
 function closeChat() {
     document.getElementById('chatArea').classList.remove('active');
     currentRoomId = 'global'; 
-    if (currentTypingRef) { currentTypingRef.off(); } // Отключаем прослушивание печати при выходе
+    if (currentTypingRef) { currentTypingRef.off(); } 
     loadMyChatsList(); 
     document.getElementById('bottomNav').style.display = 'flex';
 }
@@ -456,14 +434,12 @@ function loadChat(roomId, title) {
     messagesContainer.innerHTML = ''; 
     messagesCache = {}; 
     
-    // Отключаем старые слушатели
     if (currentRoomRef) { currentRoomRef.off(); }
     if (currentTypingRef) { currentTypingRef.off(); }
     
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
 
-    // ФИКС: Слушатель печати теперь корректно отключается при смене чата
     currentTypingRef = database.ref('typing/' + roomId);
     currentTypingRef.on('value', (snap) => {
         const typingData = snap.val();
@@ -535,7 +511,6 @@ function renderMessage(msgId, msg, roomId, myId, container) {
             let avStyle = uData && uData.avatarUrl ? `background-image:url(${uData.avatarUrl}); color:transparent;` : ``;
             let avText = uData && uData.avatarUrl ? '' : (msg.username[0].toUpperCase());
             let avBlock = `<div class="sender-avatar" style="${avStyle}">${avText}</div>`;
-            
             const senderInfo = document.createElement('div');
             senderInfo.className = 'sender-info';
             senderInfo.innerHTML = `${avBlock}<span class="sender-name">${msg.username}</span>`;
@@ -612,12 +587,7 @@ function sendMessage() {
                         const otherUid = currentRoomId.split('_').find(id => id !== myId);
                         database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then((s) => {
                             const currentUnread = s.val() && s.val().unreadCount ? s.val().unreadCount : 1;
-                            database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ 
-                                lastMessage: text, 
-                                unreadCount: currentUnread + 1,
-                                username: myName,
-                                avatarUrl: myAvatar
-                            });
+                            database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ lastMessage: text, unreadCount: currentUnread + 1, username: myName, avatarUrl: myAvatar });
                         });
                     }
                 }
@@ -643,11 +613,7 @@ if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && !localStorage.getItem('
             if (error.code === 'auth/user-not-found') {
                 auth.createUserWithEmailAndPassword(tgEmail, tgPassword)
                     .then((user) => {
-                        database.ref('users/' + user.user.uid).set({ 
-                            username: tgUser.username || 'tg_user_' + tgUser.id, 
-                            displayName: tgUser.first_name || 'Гость', 
-                            avatar: tgUser.first_name ? tgUser.first_name[0].toUpperCase() : 'T'
-                        });
+                        database.ref('users/' + user.user.uid).set({ username: tgUser.username || 'tg_user_' + tgUser.id, displayName: tgUser.first_name || 'Гость', avatar: tgUser.first_name ? tgUser.first_name[0].toUpperCase() : 'T' });
                         database.ref('usernames/' + (tgUser.username || 'tg_' + tgUser.id)).set({ type: 'user', id: user.user.uid });
                     });
             }
