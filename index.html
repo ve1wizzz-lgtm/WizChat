@@ -47,7 +47,7 @@
             <div class="sidebar">
                 <div class="search-wrapper">
                     <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Поиск..." oninput="liveSearch()">
+                        <input type="text" id="searchInput" placeholder="Поиск людей, групп, каналов..." oninput="liveSearch()">
                         <button>🔍</button>
                     </div>
                     <div class="search-results" id="searchResults" style="display: none;"></div>
@@ -55,7 +55,9 @@
                 <div class="header" style="padding: 15px;">Мои чаты</div>
                 <div class="chat-list" id="chatList"></div>
             </div>
-        </div>        <div class="tab-content" id="tab-settings">
+        </div>
+
+        <div class="tab-content" id="tab-settings">
             <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
             <div class="settings-group">
                 <h3>Тема</h3>
@@ -101,7 +103,30 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="profileModal">
+        <div class="modal-overlay" id="choiceCreateModal">
+            <div class="modal-content" style="text-align: center;">
+                <h3>Что создадим?</h3>
+                <button onclick="setCreateType('channel')" style="background: #e67e22; margin-bottom: 10px;">📢 Создать канал</button>
+                <button onclick="setCreateType('group')" style="background: #2ecc71; margin-bottom: 10px;">👥 Создать группу</button>
+                <button onclick="hideModal('choiceCreateModal')" style="background: #c0392b;">Отмена</button>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="createModal">
+            <div class="modal-content">
+                <h3 id="createModalTitle">Создать</h3>
+                <input type="text" id="chName" placeholder="Название">
+                <input type="text" id="chUsername" placeholder="Юзернейм (на англ.)">
+                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                    <input type="checkbox" id="chPrivate" style="width:20px; margin:0;"> Приватный (вход по коду)
+                </label>
+                <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать</button>
+                <hr style="border-color: #242f3d; margin: 15px 0;">
+                <input type="text" id="joinCode" placeholder="Секретный код">
+                <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
+                <button onclick="closeCreateModal()" style="background: #c0392b; margin-top: 10px;">Отмена</button>
+            </div>
+        </div>        <div class="modal-overlay" id="profileModal">
             <div class="modal-content" style="text-align: center; padding: 30px 20px;">
                 <div class="avatar-large" id="profAvatar" style="margin: 0 auto 15px auto; width: 100px; height: 100px; font-size: 40px;">#</div>
                 <h2 id="profName" style="font-size: 24px; color: var(--text-main); margin-bottom: 5px;">Загрузка...</h2>
@@ -120,7 +145,7 @@
                 <button onclick="closeProfileModal()" style="background: var(--bg-panel); border: 1px solid var(--bg-input); color: var(--text-main); width: 100%; border-radius: 10px; padding: 12px; border: none; font-weight: bold; cursor: pointer;">Закрыть</button>
             </div>
         </div>
-        
+
         <div class="modal-overlay" id="membersModal">
             <div class="modal-content" style="padding: 15px;">
                 <h3 style="margin-bottom: 15px;" id="membersModalTitle">Участники</h3>
@@ -169,21 +194,6 @@
             <div class="nav-item active" onclick="switchTab('chats', this)">💬<br><span>Чаты</span></div>
             <div class="nav-item" onclick="switchTab('settings', this)">⚙️<br><span>Настройки</span></div>
             <div class="nav-item" onclick="switchTab('profile', this)">👤<br><span>Профиль</span></div>
-        </div>
-
-        <div class="modal-overlay" id="createModal">
-            <div class="modal-content">
-                <h3>Создать</h3>
-                <input type="text" id="chName" placeholder="Название">
-                <input type="text" id="chUsername" placeholder="Юзернейм (на англ.)">
-                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:10px;"><input type="checkbox" id="chPrivate" style="width:20px; margin:0;"> Приватный</label>
-                <label style="color:var(--text-main); display:flex; align-items:center; gap:10px; margin-bottom:15px;"><input type="checkbox" id="chIsGroup" style="width:20px; margin:0;"> Это группа (иначе - канал)</label>
-                <button onclick="createChannel(this)" style="background: #2b5278;" id="btnCreate">Создать</button>
-                <hr style="border-color: #242f3d; margin: 15px 0;">
-                <input type="text" id="joinCode" placeholder="Секретный код">
-                <button onclick="joinChannelByCode()" style="background: #2ecc71;">Войти по коду</button>
-                <button onclick="closeCreateModal()" style="background: #c0392b; margin-top: 10px;">Отмена</button>
-            </div>
         </div>
     </div>
     <script src="script.js"></script>
