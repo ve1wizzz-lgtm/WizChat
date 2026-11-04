@@ -57,7 +57,7 @@ function toggleRecording() {
             const base64 = canvas.toDataURL('image/jpeg', 0.6); btn.innerHTML = originalText; btn.disabled = false; event.target.value = ''; sendChatImage(base64);
         }; img.src = e.target.result;
     }; reader.readAsDataURL(file);
-} function sendChatImage(base64Image) { const myId = localStorage.getItem('myUserId'); if (!myId) return; database.ref('users/' + myId).once('value').then((snap) => { const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const msgData = { text: "📷 Фотография", image: base64Image, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false }; if (activeReplyContext) msgData.replyTo = activeReplyContext; pushMsg(msgData, "📷 Фотография"); }); }
+}function sendChatImage(base64Image) { const myId = localStorage.getItem('myUserId'); if (!myId) return; database.ref('users/' + myId).once('value').then((snap) => { const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const msgData = { text: "📷 Фотография", image: base64Image, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false }; if (activeReplyContext) msgData.replyTo = activeReplyContext; pushMsg(msgData, "📷 Фотография"); }); }
 function sendChatVoice(base64Audio) { const myId = localStorage.getItem('myUserId'); if (!myId) return; database.ref('users/' + myId).once('value').then((snap) => { const myData = snap.val(); const myName = myData ? myData.displayName || myData.username : "Аноним"; const msgData = { text: "🎤 Голосовое", audio: base64Audio, userId: myId, username: myName, timestamp: Date.now(), views: 0, read: false }; if (activeReplyContext) msgData.replyTo = activeReplyContext; pushMsg(msgData, "🎤 Голосовое"); }); }
 function pushMsg(msgData, textPreview) { const myId = localStorage.getItem('myUserId'); database.ref('chats/' + currentRoomId).push(msgData).then(() => { cancelReply(); if (currentRoomId !== 'global') { database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: textPreview }); } }); }const quickEmojis = ['😀','😂','😍','🥰','😎','😭','🤔','👍','🔥','❤️','🎉','🙏','🤡','💩','👻','💀','🤖','💯','👀','👌'];
 function toggleEmojiPanel() { const panel = document.getElementById('emojiPanel'); if (panel.style.display === 'none') { if(panel.innerHTML === '') { let html = ''; quickEmojis.forEach(e => { html += `<button class="emoji-btn" onclick="addEmoji('${e}')">${e}</button>`; }); panel.innerHTML = html; } panel.style.display = 'grid'; } else { panel.style.display = 'none'; } }
@@ -351,83 +351,4 @@ auth.onAuthStateChanged((user) => {
     if (user) { localStorage.setItem('myUserId', user.uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(user.uid); loadMyChatsList(); loadProfile(); } 
     else { document.getElementById('authScreen').style.display = 'flex'; document.getElementById('mainApp').style.display = 'none'; }
 });
-if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }const IMGBB_API_KEY = "2cfc53f344ebcdd4a71f0ab2b3bd0439"; 
-function uploadToImgBB(file, type) {
-    if (type === 'avatar') { const av = document.getElementById('profileAvatar'); av.style.backgroundImage = 'none'; av.textContent = '⏳'; } 
-    else { const b = document.getElementById('myProfileBanner'); b.style.backgroundImage = 'none'; b.style.backgroundColor = '#555'; }
-    const formData = new FormData(); formData.append('image', file);
-    fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const imageUrl = data.data.url; 
-            if (type === 'avatar') { tempAvatarBase64 = imageUrl; const profAvatar = document.getElementById('profileAvatar'); profAvatar.textContent = ''; profAvatar.style.backgroundImage = `url(${imageUrl})`; } 
-            else { tempBannerBase64 = imageUrl; const bannerEl = document.getElementById('myProfileBanner'); bannerEl.style.backgroundImage = `url(${imageUrl})`; }
-        } else { alert("Ошибка ImgBB: " + data.error.message); }
-    }).catch(error => { alert("Ошибка интернета при загрузке!"); console.error(error); });
-}
-function handleAvatarUpload(event) { const file = event.target.files[0]; if (!file) return; if (file.size > 10 * 1024 * 1024) return alert("Максимум 10 МБ."); uploadToImgBB(file, 'avatar'); }
-function handleBannerUpload(event) { const file = event.target.files[0]; if (!file) return; if (file.size > 15 * 1024 * 1024) return alert("Максимум 15 МБ."); uploadToImgBB(file, 'banner'); }function loadProfile() {
-    const myId = localStorage.getItem('myUserId'); if (!myId) return;
-    database.ref('users/' + myId).once('value').then(snap => {
-        const data = snap.val(); if (!data) return; 
-        const avatarEl = document.getElementById('profileAvatar'); const bannerEl = document.getElementById('myProfileBanner');
-        document.getElementById('profileDisplayName').textContent = data.displayName || data.username || "Без имени"; 
-        if (data.avatarUrl) { avatarEl.textContent = ''; avatarEl.style.backgroundImage = `url(${data.avatarUrl})`; } else { avatarEl.textContent = data.username ? data.username[0].toUpperCase() : '?'; avatarEl.style.backgroundImage = 'none'; } 
-        if (data.bannerUrl) { bannerEl.style.backgroundImage = `url(${data.bannerUrl})`; } else { bannerEl.style.backgroundImage = 'none'; bannerEl.style.backgroundColor = '#2b5278'; }
-        document.getElementById('newDisplayName').value = data.displayName || ''; document.getElementById('newBio').value = data.bio || '';
-    });
-}
-function saveProfile() {
-    const myId = localStorage.getItem('myUserId'); if (!myId) return; 
-    const newName = document.getElementById('newDisplayName').value.trim(); const newBio = document.getElementById('newBio').value.trim(); 
-    const updates = {}; 
-    if (newName) updates.displayName = newName; updates.bio = newBio; 
-    if (tempAvatarBase64) updates.avatarUrl = tempAvatarBase64; 
-    if (tempBannerBase64) updates.bannerUrl = tempBannerBase64; 
-    database.ref('users/' + myId).update(updates).then(() => { tempAvatarBase64 = null; tempBannerBase64 = null; alert("Профиль сохранён!"); loadProfile(); });
-}function registerUser() {
-    const rawUsername = document.getElementById('loginUsername').value;
-    const username = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    const password = document.getElementById('loginPassword').value;
-    if (!username || username.length < 3) return alert("Юзернейм минимум 3 символа (только англ. буквы, цифры и _)"); 
-    if (!password || password.length < 6) return alert("Пароль минимум 6 символов");
-    const email = username + "@wizchat.com";
-    auth.createUserWithEmailAndPassword(email, password).then((userCredential) => {
-        const uid = userCredential.user.uid;
-        database.ref('users/' + uid).set({ username: username, displayName: username, bio: "", avatarUrl: null, bannerUrl: null, privateAccount: false, forbidFirstMessage: false }).then(() => {
-            database.ref('usernames/' + username).set({ type: 'user', id: uid }).then(() => { alert("Регистрация успешна! Теперь войди."); auth.signOut(); });
-        }).catch(err => alert("Ошибка базы данных: " + err.message));
-    }).catch(err => alert("Ошибка Firebase Auth: " + err.message));
-}
-function loginUser() {
-    const username = document.getElementById('loginUsername').value.trim().toLowerCase(); const password = document.getElementById('loginPassword').value;
-    if (!username || !password) return alert("Заполни все поля"); const email = username + "@wizchat.com";
-    auth.signInWithEmailAndPassword(email, password).then((userCredential) => {
-        const uid = userCredential.user.uid; localStorage.setItem('myUserId', uid); document.getElementById('authScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'flex'; setupOnlineStatus(uid); loadMyChatsList(); loadProfile();
-    }).catch(err => alert("Неверный юзернейм или пароль: " + err.message));
-}
-function logoutUser() { if (!confirm("Выйти из аккаунта?")) return; auth.signOut().then(() => { localStorage.removeItem('myUserId'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('authScreen').style.display = 'flex'; }); }function loadMyChatsList() {
-    const myId = localStorage.getItem('myUserId'); if (!myId) return; const chatList = document.getElementById('chatList'); if (!chatList) return; chatList.innerHTML = '';
-    database.ref('userChats/' + myId).once('value').then(snap => {
-        const chats = snap.val() || {};
-        for (const roomId in chats) {
-            const data = chats[roomId]; const div = document.createElement('div'); div.className = 'chat-item'; let badgeHTML = ''; if (data.unreadCount && data.unreadCount > 0) { badgeHTML = `<span class="unread-badge">${data.unreadCount}</span>`; }
-            let previewText = data.lastMessage || ""; if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...'; const isChannel = roomId.startsWith('ch_'); const isGroup = roomId.startsWith('gr_'); const icon = isGroup ? '👥 ' : (isChannel ? '📢 ' : '');
-            let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isGroup ? '#2ecc71' : (isChannel ? '#e67e22' : '#4fc3f7')};`; let avText = data.avatarUrl ? '' : (isGroup ? 'G' : (isChannel ? '#' : (data.username ? data.username[0].toUpperCase() : '?')));
-            let onlineDotHTML = '';
-            if (!isChannel && !isGroup) { const otherUid = roomId.split('_').find(id => id !== myId); if (otherUid) { database.ref('status/' + otherUid).once('value').then(sSnap => { if (sSnap.val() && sSnap.val().state === 'online') { const wrap = document.getElementById('avatar_wrap_' + roomId); if (wrap) wrap.innerHTML += `<div class="chat-online-dot"></div>`; } }); } }
-            div.innerHTML = `<div class="avatar-placeholder" id="avatar_wrap_${roomId}" style="${avStyle}">${avText}${onlineDotHTML}</div><div class="chat-info"><div class="chat-top"><div class="chat-name">${icon}${data.username || 'Без имени'}</div>${badgeHTML}</div><div class="chat-last-msg">${previewText}</div></div>`;
-            div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
-        }
-    });
-}
-function liveSearch() {
-    const query = document.getElementById('searchInput').value.trim().toLowerCase(); const results = document.getElementById('searchResults'); if (!results) return;
-    if (!query) { results.style.display = 'none'; results.innerHTML = ''; return; }
-    results.innerHTML = '<div style="padding:10px; color:gray;">Ищем...</div>'; results.style.display = 'block'; let count = 0; const myId = localStorage.getItem('myUserId');
-    database.ref('users').once('value').then(snap => { snap.forEach(child => { const uid = child.key; const u = child.val(); if (uid !== myId && u.username && u.username.toLowerCase().includes(query) && !u.privateAccount) { const div = document.createElement('div'); div.className = 'search-user-item'; let avStyle = u.avatarUrl ? `background-image:url(${u.avatarUrl}); color:transparent;` : ''; let avText = u.avatarUrl ? '' : (u.username ? u.username[0].toUpperCase() : '?'); div.innerHTML = `<div class="avatar-placeholder" style="${avStyle}; width:35px; height:35px; font-size:15px;">${avText}</div><span>👤 @${u.username}</span>`; div.onclick = () => { results.style.display = 'none'; openProfileModal(uid); }; results.appendChild(div); count++; } }); });
-    database.ref('channels').once('value').then(snap => { snap.forEach(child => { const id = child.key; const ch = child.val(); if (ch.username && ch.username.toLowerCase().includes(query)) { const div = document.createElement('div'); div.className = 'search-user-item'; div.innerHTML = `<div class="avatar-placeholder" style="background:#e67e22; width:35px; height:35px; font-size:15px;">#</div><span>📢 ${ch.name} (@${ch.username})</span>`; div.onclick = () => { results.style.display = 'none'; openChat(id, ch.name, null); }; results.appendChild(div); count++; } }); });
-    database.ref('groups').once('value').then(snap => { snap.forEach(child => { const id = child.key; const gr = child.val(); if (gr.username && gr.username.toLowerCase().includes(query)) { const div = document.createElement('div'); div.className = 'search-user-item'; div.innerHTML = `<div class="avatar-placeholder" style="background:#2ecc71; width:35px; height:35px; font-size:15px;">G</div><span>👥 ${gr.name} (@${gr.username})</span>`; div.onclick = () => { results.style.display = 'none'; openChat(id, gr.name, null); }; results.appendChild(div); count++; } }); });
-    setTimeout(() => { if (count === 0 && results.innerHTML === '<div style="padding:10px; color:gray;">Ищем...</div>') { results.innerHTML = '<div style="padding:10px; color:gray;">Ничего не найдено</div>'; } }, 600);
-}
+if (window.Telegram && window.Telegram.WebApp) { window.Telegram.WebApp.expand(); }
