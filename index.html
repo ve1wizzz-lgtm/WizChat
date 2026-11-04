@@ -63,66 +63,68 @@
                 <div class="header" style="padding: 15px;">Мои чаты</div>
                 <div class="chat-list" id="chatList"></div>
             </div>
-        </div><div class="tab-content" id="tab-settings">
-    <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
-    <div class="settings-group">
-        <h3>Тема</h3>
-        <div class="theme-buttons">
-            <button onclick="changeTheme('dark')">Темная</button>
-            <button onclick="changeTheme('light')">Светлая</button>
+        </div>        <div class="tab-content" id="tab-settings">
+            <div class="header" style="font-size: 20px; color: var(--text-main);">⚙️ Настройки</div>
+            <div class="settings-group">
+                <h3>Тема</h3>
+                <div class="theme-buttons">
+                    <button onclick="changeTheme('dark')">Темная</button>
+                    <button onclick="changeTheme('light')">Светлая</button>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Размер текста</h3>
+                <div class="theme-buttons">
+                    <button onclick="changeFontSize('small')">Маленький</button>
+                    <button onclick="changeFontSize('medium')">Средний</button>
+                    <button onclick="changeFontSize('large')">Большой</button>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Приватность</h3>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="color:var(--text-main);">Приватный аккаунт</span>
+                    <label class="switch"><input type="checkbox" id="privateAccountToggle" onchange="togglePrivateAccount()"><span class="slider"></span></label>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:var(--text-main); font-size: 14px;">Запретить писать первыми</span>
+                    <label class="switch"><input type="checkbox" id="forbidFirstMsgToggle" onchange="toggleForbidFirstMsg()"><span class="slider"></span></label>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Заблокированные</h3>
+                <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
+            </div>
+            <div class="settings-group">
+                <h3>О разработчике</h3>
+                <a href="https://t.me/WizChatChannell" target="_blank" style="display:block; text-align:center; background:#2AABEE; color:white; padding:12px; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">🚀 Telegram-канал разработчика</a>
+            </div>
+            <div class="settings-group" style="margin-top: 10px;">
+                <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
+            </div>
         </div>
-    </div>
-    <div class="settings-group">
-        <h3>Размер текста</h3>
-        <div class="theme-buttons">
-            <button onclick="changeFontSize('small')">Маленький</button>
-            <button onclick="changeFontSize('medium')">Средний</button>
-            <button onclick="changeFontSize('large')">Большой</button>
-        </div>
-    </div>
-    <div class="settings-group">
-        <h3>Приватность</h3>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="color:var(--text-main);">Приватный аккаунт</span>
-            <label class="switch"><input type="checkbox" id="privateAccountToggle" onchange="togglePrivateAccount()"><span class="slider"></span></label>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:var(--text-main); font-size: 14px;">Запретить писать первыми</span>
-            <label class="switch"><input type="checkbox" id="forbidFirstMsgToggle" onchange="toggleForbidFirstMsg()"><span class="slider"></span></label>
-        </div>
-    </div>
-    <div class="settings-group">
-        <h3>Заблокированные</h3>
-        <div id="blockedList" style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;"></div>
-    </div>
-    <div class="settings-group">
-        <h3>О разработчике</h3>
-        <a href="https://t.me/WizChatChannell" target="_blank" style="display:block; text-align:center; background:#2AABEE; color:white; padding:12px; border-radius:10px; text-decoration:none; font-weight:bold; margin-top:10px;">🚀 Telegram-канал разработчика</a>
-    </div>
-    <div class="settings-group" style="margin-top: 10px;">
-        <button onclick="logoutUser()" style="background: #c0392b; width: 100%; padding: 15px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выйти</button>
-    </div>
-</div>
 
-<div class="tab-content" id="tab-profile">
-    <div class="profile-header">
-        <div class="avatar-large" id="profileAvatar">V</div>
-        <div class="profile-name" id="profileDisplayName">Загрузка...</div>
-        <div class="profile-username" id="profileUsername">@...</div>
-    </div>
-    <div class="profile-settings">
-        <label>Имя (Никнейм)</label>
-        <input type="text" id="newDisplayName" placeholder="Введите имя">
-        <label>О себе (Описание)</label>
-        <textarea id="newBio" placeholder="Расскажите о себе..." style="padding: 12px; border-radius: 10px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; font-size: 16px; resize:none; height: 80px; font-family: sans-serif;"></textarea>
-        <label>Загрузить фото с телефона</label>
-        <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
-        <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
-        <label>Или вставьте ссылку на фото</label>
-        <input type="text" id="newAvatarUrl" placeholder="https://...">
-        <button onclick="saveProfile()">Сохранить профиль</button>
-    </div>
-</div>        <div class="modal-overlay" id="choiceCreateModal">
+        <div class="tab-content" id="tab-profile">
+            <div class="profile-header">
+                <div class="avatar-large" id="profileAvatar">V</div>
+                <div class="profile-name" id="profileDisplayName">Загрузка...</div>
+                <div class="profile-username" id="profileUsername">@...</div>
+            </div>
+            <div class="profile-settings">
+                <label>Имя (Никнейм)</label>
+                <input type="text" id="newDisplayName" placeholder="Введите имя">
+                <label>О себе (Описание)</label>
+                <textarea id="newBio" placeholder="Расскажите о себе..." style="padding: 12px; border-radius: 10px; border: none; background: var(--bg-input); color: var(--text-main); outline: none; font-size: 16px; resize:none; height: 80px; font-family: sans-serif;"></textarea>
+                <label>Загрузить фото с телефона</label>
+                <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                <button type="button" onclick="document.getElementById('avatarUpload').click()" style="background: #2b5278; margin-bottom: 10px; padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold;">Выбрать картинку 📷</button>
+                <label>Или вставьте ссылку на фото</label>
+                <input type="text" id="newAvatarUrl" placeholder="https://...">
+                <button onclick="saveProfile()">Сохранить профиль</button>
+            </div>
+        </div>
+        
+        <div class="modal-overlay" id="choiceCreateModal">
             <div class="modal-content" style="text-align: center;">
                 <h3>Что создадим?</h3>
                 <button onclick="setCreateType('channel')" style="background: #e67e22; margin-bottom: 10px;">📢 Создать канал</button>
@@ -159,8 +161,6 @@
                     <label class="switch"><input type="checkbox" id="muteToggle" onchange="toggleMuteChat()"><span class="slider"></span></label>
                 </div>
                 <button id="showMembersBtn" onclick="showMembersList()" style="background: #3498db; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">👥 Участники</button>
-                <button id="changeWallpaperBtn" onclick="changeWallpaper()" style="background: #9b59b6; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">🎨 Сменить фон</button>
-                <button id="resetWallpaperBtn" onclick="resetWallpaper()" style="background: #7f8c8d; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer; display: none;">↩️ Сбросить фон</button>
                 <button id="writeMessageBtn" onclick="startChatFromProfile()" style="background: #2ecc71; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">✍️ Написать</button>
                 <button id="blockUserBtn" onclick="toggleBlockUser()" style="background: #e67e22; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🚫 Заблокировать</button>
                 <button id="deleteChatBtn" onclick="deleteChatFromProfile()" style="background: #c0392b; margin-bottom: 10px; width: 100%; border-radius: 10px; padding: 12px; border: none; color: white; font-weight: bold; cursor: pointer;">🗑️ Удалить чат</button>
@@ -224,4 +224,4 @@
     </div>
     <script src="script.js"></script>
 </body>
-</html> 
+</html>
