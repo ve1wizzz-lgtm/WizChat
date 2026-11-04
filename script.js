@@ -1,3 +1,7 @@
+window.onerror = function(message, source, lineno, colno, error) {
+    alert("ОШИБКА: " + message + "\nСтрока: " + lineno);
+    return false;
+};
 const firebaseConfig = {
   apiKey: "AIzaSyD99mv9x7tSAItOJ4UooTyPhNlewRGQnh0",
   authDomain: "wizchat-3e52f.firebaseapp.com",
