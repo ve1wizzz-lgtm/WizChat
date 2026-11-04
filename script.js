@@ -17,7 +17,42 @@ let currentRoomRef = null;
 let currentProfileChannelId = null; 
 let activeReplyContext = null;
 let messagesCache = {}; 
-let typingTimeout; // Таймер для "Печатает..."
+let typingTimeout;
+let tempAvatarBase64 = null; // Хранилище для временной картинки
+
+// Слушатель загрузки фото с телефона
+document.addEventListener("DOMContentLoaded", () => {
+    const uploadInput = document.getElementById('avatarUpload');
+    if(uploadInput) {
+        uploadInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    // Сжимаем фото до 150x150 чтобы не перегружать базу
+                    canvas.width = 150;
+                    canvas.height = 150;
+                    const minSize = Math.min(img.width, img.height);
+                    const sx = (img.width - minSize) / 2;
+                    const sy = (img.height - minSize) / 2;
+                    ctx.drawImage(img, sx, sy, minSize, minSize, 0, 0, 150, 150);
+                    
+                    tempAvatarBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    const profAvatar = document.getElementById('profileAvatar');
+                    profAvatar.textContent = '';
+                    profAvatar.style.backgroundImage = `url(${tempAvatarBase64})`;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+});
 
 function setReply(msgId) {
     const msg = messagesCache[msgId];
@@ -63,7 +98,9 @@ function leaveChannel() {
         database.ref('channels/' + currentProfileChannelId + '/subscribers').transaction((subs) => (subs || 1) - 1);
         closeProfileModal(); closeChat(); loadMyChatsList(); alert("Вы отписались.");
     });
-}function openProfileModal() {
+}
+
+function openProfileModal() {
     if (currentRoomId === 'global') return;
     const modal = document.getElementById('profileModal');
     const av = document.getElementById('profAvatar');
@@ -81,7 +118,7 @@ function leaveChannel() {
             const data = snap.val();
             if(data) {
                 name.textContent = data.name; uname.textContent = '@' + data.username;
-                av.textContent = '#'; av.style.background = '#e67e22';
+                av.textContent = '#'; av.style.background = '#e67e22'; av.style.backgroundColor = '#e67e22';
                 subs.textContent = (data.subscribers || 1) + " подписчиков";
                 leaveBtn.style.display = 'block';
             }
@@ -91,18 +128,18 @@ function leaveChannel() {
         database.ref('users/' + otherUid).once('value').then((snap) => {
             const data = snap.val();
             if(data) {
-                name.textContent = data.displayName || data.username; uname.textContent = '@' + data.username;
-                av.textContent = data.avatar || data.username[0].toUpperCase(); av.style.background = '#4fc3f7';
+                name.textContent = data.displayName || data.username; 
+                uname.textContent = '@' + data.username;
                 if(data.avatarUrl) {
                     av.textContent = ''; av.style.backgroundImage = `url(${data.avatarUrl})`; av.style.backgroundColor = 'transparent';
+                } else {
+                    av.textContent = data.avatar || data.username[0].toUpperCase(); av.style.backgroundColor = '#4fc3f7';
                 }
                 subs.textContent = "Пользователь";
             }
         });
     }
-}
-
-function createChannel(btn) {
+}function createChannel(btn) {
     const name = document.getElementById('chName').value.trim();
     const username = document.getElementById('chUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     const isPrivate = document.getElementById('chPrivate').checked;
@@ -154,7 +191,9 @@ function applySettings() {
 }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
-applySettings();function registerUser() {
+applySettings();
+
+function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     if(!username || password.length < 6) { return alert("Пароль мин. 6 символов!"); }
@@ -200,7 +239,6 @@ function loadProfile() {
             document.getElementById('profileDisplayName').textContent = data.displayName || data.username;
             document.getElementById('profileUsername').textContent = '@' + data.username;
             document.getElementById('newDisplayName').value = data.displayName || data.username;
-            document.getElementById('newAvatarText').value = data.avatar || data.username[0].toUpperCase();
             document.getElementById('newAvatarUrl').value = data.avatarUrl || '';
             
             const profAvatar = document.getElementById('profileAvatar');
@@ -220,13 +258,20 @@ function loadProfile() {
 function saveProfile() {
     const myId = localStorage.getItem('myUserId');
     const newName = document.getElementById('newDisplayName').value.trim();
-    const newAvatar = document.getElementById('newAvatarText').value.trim();
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
     if(!newName) return alert("Введите имя!");
-    database.ref('users/' + myId).update({ displayName: newName, avatar: newAvatar || newName[0].toUpperCase(), avatarUrl: newAvatarUrl }).then(() => alert("Профиль обновлен!"));
-}
-
-function liveSearch() {
+    
+    // Если юзер загрузил фото с телефона, используем его. Иначе - ссылку.
+    let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
+    
+    database.ref('users/' + myId).update({ 
+        displayName: newName, 
+        avatarUrl: finalAvatar 
+    }).then(() => {
+        alert("Профиль обновлен!");
+        tempAvatarBase64 = null; // Сбрасываем после сохранения
+    });
+}function liveSearch() {
     const searchName = document.getElementById('searchInput').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('searchResults');
     const myId = localStorage.getItem('myUserId');
@@ -331,26 +376,20 @@ function loadChat(roomId, title) {
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
 
-    // СЛУШАЕМ СТАТУС "ПЕЧАТАЕТ..."
+    // Статус "Печатает..."
     database.ref('typing/' + roomId).on('value', (snap) => {
         const typingData = snap.val();
         let someoneTyping = false;
         let typingName = "";
-        
         if (typingData) {
             for (const uid in typingData) {
                 if (uid !== myId && typingData[uid].isTyping) {
                     someoneTyping = true;
-                    typingName = typingData[uid].name;
+                    typingName = typingData[uid].name; // Берем имя
                 }
             }
         }
-        
-        if (someoneTyping) {
-            document.getElementById('chatTitle').textContent = `${typingName} печатает...`;
-        } else {
-            document.getElementById('chatTitle').textContent = title;
-        }
+        document.getElementById('chatTitle').textContent = someoneTyping ? `${typingName} печатает...` : title;
     });
 
     if (roomId.startsWith('ch_')) {
@@ -387,18 +426,17 @@ function loadChat(roomId, title) {
         if(viewsSpan) viewsSpan.textContent = msg.views || 0;
     });
 
-    // Обработчик ввода текста для статуса "Печатает"
     const msgInput = document.getElementById('msgInput');
     msgInput.addEventListener('input', () => {
         database.ref(`users/${myId}`).once('value').then(uSnap => {
             const myData = uSnap.val();
-            const myName = myData ? myData.displayName || myData.username : "Кто-то";
+            // Берем именно displayName, а если нет - username
+            const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; 
             database.ref(`typing/${roomId}/${myId}`).set({ isTyping: true, name: myName });
-            
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 database.ref(`typing/${roomId}/${myId}`).set({ isTyping: false });
-            }, 2000); // Через 2 секунды после остановки печати, статус сбрасывается
+            }, 2000); 
         });
     });
 }function renderMessage(msgId, msg, roomId, myId, container) {
