@@ -18,9 +18,10 @@ let currentProfileChannelId = null;
 let activeReplyContext = null;
 let messagesCache = {}; 
 let typingTimeout;
-let tempAvatarBase64 = null; // Хранилище для временной картинки
+let tempAvatarBase64 = null;
+let previousUnread = {}; // Для отслеживания новых сообщений
 
-// Слушатель загрузки фото с телефона
+// Загрузка фото
 document.addEventListener("DOMContentLoaded", () => {
     const uploadInput = document.getElementById('avatarUpload');
     if(uploadInput) {
@@ -33,16 +34,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    // Сжимаем фото до 150x150 чтобы не перегружать базу
-                    canvas.width = 150;
-                    canvas.height = 150;
+                    canvas.width = 150; canvas.height = 150;
                     const minSize = Math.min(img.width, img.height);
                     const sx = (img.width - minSize) / 2;
                     const sy = (img.height - minSize) / 2;
                     ctx.drawImage(img, sx, sy, minSize, minSize, 0, 0, 150, 150);
-                    
                     tempAvatarBase64 = canvas.toDataURL('image/jpeg', 0.8);
-                    
                     const profAvatar = document.getElementById('profileAvatar');
                     profAvatar.textContent = '';
                     profAvatar.style.backgroundImage = `url(${tempAvatarBase64})`;
@@ -261,15 +258,51 @@ function saveProfile() {
     const newAvatarUrl = document.getElementById('newAvatarUrl').value.trim();
     if(!newName) return alert("Введите имя!");
     
-    // Если юзер загрузил фото с телефона, используем его. Иначе - ссылку.
     let finalAvatar = tempAvatarBase64 ? tempAvatarBase64 : newAvatarUrl;
     
+    // 1. Обновляем свой профиль
     database.ref('users/' + myId).update({ 
         displayName: newName, 
         avatarUrl: finalAvatar 
     }).then(() => {
+        // 2. Обновляем наше имя во всех чатах, где мы есть
+        database.ref(`userChats/${myId}`).once('value').then(snap => {
+            snap.forEach(child => {
+                const roomId = child.key;
+                if(!roomId.startsWith('ch_')) {
+                    const otherUid = roomId.split('_').find(id => id !== myId);
+                    if(otherUid) {
+                        // Обновляем имя у собеседника
+                        database.ref(`userChats/${otherUid}/${roomId}`).update({
+                            username: newName,
+                            avatarUrl: finalAvatar
+                        });
+                    }
+                }
+            });
+        });
+        
+        // 3. Обновляем имена собеседников в моем списке чатов (на случай, если они меняли ник, пока я офлайн)
+        database.ref(`userChats/${myId}`).once('value').then(snap => {
+             snap.forEach(child => {
+                const roomId = child.key;
+                if(!roomId.startsWith('ch_')) {
+                    const otherUid = roomId.split('_').find(id => id !== myId);
+                    database.ref(`users/${otherUid}`).once('value').then(uSnap => {
+                        const uData = uSnap.val();
+                        if(uData) {
+                            database.ref(`userChats/${myId}/${roomId}`).update({
+                                username: uData.displayName || uData.username,
+                                avatarUrl: uData.avatarUrl || ''
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        
         alert("Профиль обновлен!");
-        tempAvatarBase64 = null; // Сбрасываем после сохранения
+        tempAvatarBase64 = null; 
     });
 }function liveSearch() {
     const searchName = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -285,8 +318,8 @@ function saveProfile() {
                 found = true; const div = document.createElement('div'); div.className = 'search-user-item';
                 let avStyle = user.avatarUrl ? `background-image:url(${user.avatarUrl}); color:transparent;` : `background-color:#4fc3f7;`;
                 let avText = user.avatarUrl ? '' : (user.avatar || user.username[0]);
-                div.innerHTML = `<div class="avatar-placeholder" style="${avStyle}">${avText}</div><div>👤 @${user.username}</div>`;
-                div.onclick = () => startPrivateChat(uid, user.username); resultsDiv.appendChild(div);
+                div.innerHTML = `<div class="avatar-placeholder" style="${avStyle}">${avText}</div><div>👤 @${user.username} <span style="color:gray; font-size:12px;">(${user.displayName || user.username})</span></div>`;
+                div.onclick = () => startPrivateChat(uid, user.displayName || user.username); resultsDiv.appendChild(div);
             }
         });
         database.ref('channels').orderByChild('isPrivate').equalTo(false).once('value', (chSnap) => {
@@ -312,14 +345,19 @@ function joinPublicChannel(channelId, name) {
     });
 }
 
-function startPrivateChat(otherUid, otherUsername) {
+function startPrivateChat(otherUid, otherDisplayName) {
     const myId = localStorage.getItem('myUserId');
     const roomId = [myId, otherUid].sort().join('_'); 
     database.ref('users/' + myId).once('value').then((snap) => {
-        const myUsername = snap.val().username;
-        database.ref(`userChats/${myId}/${roomId}`).update({ username: otherUsername, lastMessage: "Чат создан", unreadCount: 0 });
+        const myData = snap.val();
+        const myUsername = myData.displayName || myData.username;
+        
+        // Добавляем чат в свой список
+        database.ref(`userChats/${myId}/${roomId}`).update({ username: otherDisplayName, lastMessage: "Чат создан", unreadCount: 0 });
+        // Добавляем чат в список собеседника (под нашим ником)
         database.ref(`userChats/${otherUid}/${roomId}`).update({ username: myUsername, lastMessage: "Чат создан", unreadCount: 0 });
-        openChat(roomId, otherUsername, null);
+        
+        openChat(roomId, otherDisplayName, null);
         document.getElementById('searchInput').value = ''; document.getElementById('searchResults').style.display = 'none';
     });
 }
@@ -327,21 +365,55 @@ function startPrivateChat(otherUid, otherUsername) {
 function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
+    
     database.ref(`userChats/${myId}`).on('value', (snapshot) => {
         chatList.innerHTML = ''; 
         const globalDiv = document.createElement('div');
         globalDiv.className = currentRoomId === 'global' ? 'chat-item active' : 'chat-item';
-        globalDiv.innerHTML = `<div class="chat-info"><div class="chat-name">💬 Общий чат</div><div class="chat-last-msg">Главный канал</div></div>`;
+        globalDiv.innerHTML = `<div class="avatar-placeholder" style="background:#4fc3f7;">#</div><div class="chat-info"><div class="chat-name">💬 Общий чат</div><div class="chat-last-msg">Главный канал</div></div>`;
         globalDiv.onclick = function() { openChat('global', 'Общий чат', this); }; chatList.appendChild(globalDiv);
+
         if (snapshot.exists()) {
             snapshot.forEach((child) => {
                 const roomId = child.key; const data = child.val();
-                const div = document.createElement('div'); div.className = currentRoomId === roomId ? 'chat-item active' : 'chat-item';
+                
+                // ПРОВЕРКА НА НОВОЕ СООБЩЕНИЕ (Звук)
+                if (data.unreadCount > 0 && currentRoomId !== roomId) {
+                    if (previousUnread[roomId] !== data.unreadCount) {
+                        const audio = document.getElementById('notifySound');
+                        if(audio) { audio.volume = 0.5; audio.play().catch(e => console.log("Звук заблокирован браузером")); }
+                    }
+                }
+                previousUnread[roomId] = data.unreadCount;
+
+                const div = document.createElement('div'); 
+                div.className = currentRoomId === roomId ? 'chat-item active' : 'chat-item';
+                
                 let badgeHTML = '';
-                if (data.unreadCount > 0 && currentRoomId !== roomId) { badgeHTML = `<div class="unread-badge">${data.unreadCount}</div>`; }
-                let previewText = data.lastMessage || ""; if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
+                if (data.unreadCount > 0 && currentRoomId !== roomId) { 
+                    badgeHTML = `<div class="unread-badge">${data.unreadCount}</div>`; 
+                }
+                
+                let previewText = data.lastMessage || ""; 
+                if (previewText.length > 20) previewText = previewText.substring(0, 20) + '...';
+                
                 const icon = roomId.startsWith('ch_') ? '📢' : '@';
-                div.innerHTML = `<div class="chat-info"><div class="chat-top"><div class="chat-name">${icon} ${data.username}</div>${badgeHTML}</div><div class="chat-last-msg">${previewText}</div></div>`;
+                const isChannel = roomId.startsWith('ch_');
+
+                // Аватарка
+                let avStyle = data.avatarUrl ? `background-image:url(${data.avatarUrl}); color:transparent;` : `background-color:${isChannel ? '#e67e22' : '#4fc3f7'};`;
+                let avText = data.avatarUrl ? '' : (isChannel ? '#' : data.username[0].toUpperCase());
+                
+                div.innerHTML = `
+                    <div class="avatar-placeholder" style="${avStyle}">${avText}</div>
+                    <div class="chat-info">
+                        <div class="chat-top">
+                            <div class="chat-name">${icon} ${data.username}</div>
+                            ${badgeHTML}
+                        </div>
+                        <div class="chat-last-msg">${previewText}</div>
+                    </div>
+                `;
                 div.onclick = function() { openChat(roomId, data.username, this); }; chatList.appendChild(div);
             });
         }
@@ -376,7 +448,6 @@ function loadChat(roomId, title) {
     const inputArea = document.getElementById('messageInputArea');
     const myId = localStorage.getItem('myUserId');
 
-    // Статус "Печатает..."
     database.ref('typing/' + roomId).on('value', (snap) => {
         const typingData = snap.val();
         let someoneTyping = false;
@@ -385,7 +456,7 @@ function loadChat(roomId, title) {
             for (const uid in typingData) {
                 if (uid !== myId && typingData[uid].isTyping) {
                     someoneTyping = true;
-                    typingName = typingData[uid].name; // Берем имя
+                    typingName = typingData[uid].name; 
                 }
             }
         }
@@ -430,7 +501,6 @@ function loadChat(roomId, title) {
     msgInput.addEventListener('input', () => {
         database.ref(`users/${myId}`).once('value').then(uSnap => {
             const myData = uSnap.val();
-            // Берем именно displayName, а если нет - username
             const myName = myData ? (myData.displayName || myData.username) : "Кто-то"; 
             database.ref(`typing/${roomId}/${myId}`).set({ isTyping: true, name: myName });
             clearTimeout(typingTimeout);
@@ -520,6 +590,7 @@ function sendMessage() {
         database.ref('users/' + myId).once('value').then((snap) => {
             const myData = snap.val();
             const myName = myData ? myData.displayName || myData.username : "Аноним";
+            const myAvatar = myData ? myData.avatarUrl : null;
             
             const msgData = { text: text, userId: myId, username: myName, timestamp: Date.now(), views: 0 };
             if (activeReplyContext) { msgData.replyTo = activeReplyContext; }
@@ -535,7 +606,12 @@ function sendMessage() {
                         const otherUid = currentRoomId.split('_').find(id => id !== myId);
                         database.ref(`userChats/${otherUid}/${currentRoomId}`).once('value').then((s) => {
                             const currentUnread = s.val() && s.val().unreadCount ? s.val().unreadCount : 1;
-                            database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ lastMessage: text, unreadCount: currentUnread + 1 });
+                            database.ref(`userChats/${otherUid}/${currentRoomId}`).update({ 
+                                lastMessage: text, 
+                                unreadCount: currentUnread + 1,
+                                username: myName, // Обновляем наше имя в его списке
+                                avatarUrl: myAvatar // Обновляем нашу аватарку в его списке
+                            });
                         });
                     }
                 }
