@@ -91,34 +91,28 @@ function showMessageActions(event, msgId, isMine) {
     
     const rect = event.target.getBoundingClientRect();
     if(menu) {
-        menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
-        menu.style.top = Math.max(10, rect.top - 100) + 'px'; 
+        menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+        menu.style.top = Math.max(10, rect.top - 120) + 'px'; 
     }
 
-    // МНОГО РЕАКЦИЙ
+    const quickReacts = ['❤️', '👍', '🔥', '😂', '😢'];
+    let reactHTML = `<div class="reaction-list-5">`;
+    quickReacts.forEach(e => {
+        reactHTML += `<button onclick="toggleReaction('${currentRoomId}', '${msgId}', '${e}'); closeContextMenu();">${e}</button>`;
+    });
+    reactHTML += `</div><button class="btn-more-reactions" onclick="openFullReactions('${msgId}')">»</button>`;
+    
     const reactionsDiv = document.getElementById('contextReactions');
-    if(reactionsDiv) {
-        const emojis = ['🤝','😎','🫩','💀','🙏','😭','🤔','😞','😯','👎','👅','❤️‍🔥','👍','🔥','❤️'];
-        let html = '';
-        emojis.forEach(e => {
-            html += `<button onclick="toggleReaction('${currentRoomId}', '${msgId}', '${e}'); closeContextMenu();">${e}</button>`;
-        });
-        // Делаем прокрутку для реакций, чтобы не растягивалось на весь экран
-        reactionsDiv.style.overflowX = 'auto';
-        reactionsDiv.style.flexWrap = 'nowrap';
-        reactionsDiv.style.justifyContent = 'flex-start';
-        reactionsDiv.style.paddingBottom = '15px';
-        reactionsDiv.innerHTML = html;
-    }
+    if(reactionsDiv) reactionsDiv.innerHTML = reactHTML;
 
     const actionsDiv = document.getElementById('contextActions');
     if(actionsDiv) {
         actionsDiv.innerHTML = `<button onclick="setReply('${msgId}'); closeContextMenu();">↩️ Ответить</button>`;
         
         const isChannel = currentRoomId.startsWith('ch_');
+        const isGlobal = currentRoomId === 'global';
         
-        // УДАЛЕНИЕ: Своё - везде, чужое - только в личке
-        if (isMine || !isChannel) {
+        if (isMine || (!isChannel && !isGlobal)) {
             actionsDiv.innerHTML += `<button class="red-btn" onclick="deleteMessage('${currentRoomId}', '${msgId}'); closeContextMenu();">🗑️ Удалить</button>`;
         }
         
@@ -126,6 +120,22 @@ function showMessageActions(event, msgId, isMine) {
             actionsDiv.innerHTML += `<button onclick="editMessage('${msgId}'); closeContextMenu();">✏️ Изменить</button>`;
         }
     }
+}
+
+function openFullReactions(msgId) {
+    currentMenuMsgId = msgId;
+    const grid = document.getElementById('fullReactionsGrid');
+    const allEmojis = ['🤝','😎','🫩','💀','🙏','😭','🤔','😞','😯','👎','👅','❤️‍🔥','👍','🔥','❤️','😂','😢','😡','🎉','🥳','🤩','😍','🤮','🤡','💩','👻','🤖','💯','👀','👌'];
+    let html = '';
+    allEmojis.forEach(e => {
+        html += `<button onclick="toggleReaction('${currentRoomId}', '${msgId}', '${e}'); closeFullReactions(); closeContextMenu();">${e}</button>`;
+    });
+    grid.innerHTML = html;
+    document.getElementById('fullReactionsModal').style.display = 'flex';
+}
+
+function closeFullReactions() {
+    document.getElementById('fullReactionsModal').style.display = 'none';
 }
 
 function closeContextMenu() {
@@ -159,9 +169,7 @@ function editMessage(msgId) {
             });
         }
     }
-}
-
-function setReply(msgId) {
+}function setReply(msgId) {
     const msg = messagesCache[msgId];
     if(!msg) return;
     activeReplyContext = { name: msg.username || 'Аноним', text: msg.text };
@@ -178,7 +186,8 @@ function cancelReply() {
     activeReplyContext = null;
     const rp = document.getElementById('replyPreview');
     if(rp) rp.style.display = 'none';
-}// ЛОГИКА ОДНОЙ РЕАКЦИИ НА ЧЕЛОВЕКА
+}
+
 function toggleReaction(roomId, msgId, emoji) {
     const myId = localStorage.getItem('myUserId');
     const msgRef = database.ref(`chats/${roomId}/${msgId}`);
@@ -189,12 +198,10 @@ function toggleReaction(roomId, msgId, emoji) {
         let reactions = msg.reactions || {};
         let hasReactedWithThis = false;
         
-        // Проверяем, ставил ли уже эту реакцию
         if (reactions[emoji] && reactions[emoji].includes(myId)) {
             hasReactedWithThis = true;
         }
 
-        // Убираем юзера ИЗ ВСЕХ реакций на этом сообщении
         for (let key in reactions) {
             if (reactions[key].includes(myId)) {
                 reactions[key] = reactions[key].filter(id => id !== myId);
@@ -202,7 +209,6 @@ function toggleReaction(roomId, msgId, emoji) {
             }
         }
 
-        // Если он не ставил именно эту, добавляем её
         if (!hasReactedWithThis) {
             if (!reactions[emoji]) reactions[emoji] = [];
             reactions[emoji].push(myId);
@@ -292,9 +298,7 @@ function openProfileModal() {
             }
         });
     }
-}
-
-function createChannel(btn) {
+}function createChannel(btn) {
     const name = document.getElementById('chName').value.trim();
     const username = document.getElementById('chUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     const isPrivate = document.getElementById('chPrivate').checked;
@@ -348,7 +352,9 @@ function applySettings() {
 }
 function changeTheme(theme) { localStorage.setItem('appTheme', theme); applySettings(); }
 function changeFontSize(size) { localStorage.setItem('msgFontSize', size); applySettings(); }
-applySettings();function registerUser() {
+applySettings();
+
+function registerUser() {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
     if(!username || password.length < 6) { return alert("Пароль мин. 6 символов!"); }
@@ -424,9 +430,7 @@ function saveProfile() {
         });
         alert("Профиль обновлен!"); tempAvatarBase64 = null; 
     });
-}
-
-function liveSearch() {
+}function liveSearch() {
     const searchName = document.getElementById('searchInput').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('searchResults');
     const myId = localStorage.getItem('myUserId');
@@ -478,7 +482,9 @@ function startPrivateChat(otherUid, otherDisplayName) {
         openChat(roomId, otherDisplayName, null); document.getElementById('searchInput').value = ''; 
         const sR = document.getElementById('searchResults'); if(sR) sR.style.display = 'none';
     });
-}function loadMyChatsList() {
+}
+
+function loadMyChatsList() {
     const myId = localStorage.getItem('myUserId');
     const chatList = document.getElementById('chatList');
     if(!chatList) return;
@@ -526,7 +532,7 @@ function startPrivateChat(otherUid, otherDisplayName) {
 }
 
 function openChat(roomId, title, element) {
-    currentRoomId = roomId; cancelReply(); closeContextMenu();
+    currentRoomId = roomId; cancelReply(); closeContextMenu(); closeFullReactions();
     const chatList = document.getElementById('chatList');
     if(chatList) { for(let i=0; i<chatList.children.length; i++){ chatList.children[i].classList.remove('active'); } }
     if(element) element.classList.add('active'); else loadMyChatsList(); 
@@ -658,24 +664,13 @@ function sendMessage() {
                 input.value = ""; cancelReply(); input.focus(); database.ref(`typing/${currentRoomId}/${myId}`).set({ isTyping: false }); clearTimeout(typingTimeout);
                 
                 if (currentRoomId !== 'global') {
-                    // Обновляем превью у себя
                     database.ref(`userChats/${myId}/${currentRoomId}`).update({ lastMessage: text });
-                    
-                    // Обновляем у собеседника (создаем чат, если он его удалил)
                     if (!currentRoomId.startsWith('ch_')) {
                         const otherUid = currentRoomId.split('_').find(id => id !== myId);
                         if(otherUid) {
                             const otherChatRef = database.ref(`userChats/${otherUid}/${currentRoomId}`);
-                            otherChatRef.update({ 
-                                username: myName, 
-                                avatarUrl: myAvatar,
-                                lastMessage: text
-                            });
-                            
-                            // Безопасно прибавляем счетчик непрочитанных
-                            otherChatRef.child('unreadCount').transaction((count) => {
-                                return (count || 0) + 1;
-                            });
+                            otherChatRef.update({ username: myName, avatarUrl: myAvatar, lastMessage: text });
+                            otherChatRef.child('unreadCount').transaction((count) => (count || 0) + 1);
                         }
                     }
                 }
