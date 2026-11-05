@@ -681,4 +681,4 @@ document.addEventListener('contextmenu', function(e) {
     if (e.target.tagName === 'IMG' || e.target.closest('.message')) {
         e.preventDefault();
     }
-});
+}); alert("Скрипт загружен!");
