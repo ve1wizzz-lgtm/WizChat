@@ -136,4 +136,4 @@ input:checked + .slider:before { transform: translateX(20px); }@keyframes flyOut
 #chatContextMenu.show { display: flex; opacity: 1; transform: scale(1); }
 #chatContextMenu button { background: transparent; border: none; color: var(--text-main); padding: 10px 15px; text-align: left; font-size: 15px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
 #chatContextMenu button:active { background: var(--bg-input); }
-#chatContextMenu button.danger { color: #e74c3c; }
+#chatContextMenu button.danger { color: #e74c3c; } button:active, .chat-item:active, .nav-item:active { transform: scale(0.96); transition: transform 0.1s; }
