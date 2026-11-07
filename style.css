@@ -149,4 +149,21 @@ input:checked + .slider:before { transform: translateX(20px); }.chat-area { widt
 @keyframes flash { 0% { background-color: rgba(79, 195, 247, 0.5); } 100% { background-color: transparent; } }
 .highlight-msg { animation: flash 1.5s ease-out; border-radius: 10px; }
 #profileModal .modal-content { transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important; }
-#profileModal.show .modal-content { transform: translateY(0); }
+#profileModal.show .modal-content { transform: translateY(0); } /* Исправление длинных ников */
+#profName, #profileDisplayName, #chatTitle, .chat-name, #profUsername, #profileUsername, .sender-name {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+    max-width: 100%;
+}
+
+/* Чтобы длинный текст не сдвигал шторку профиля */
+#profModalContent {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    box-sizing: border-box;
+}
+
+#profModalContent > div {
+    min-width: 0;
+}
